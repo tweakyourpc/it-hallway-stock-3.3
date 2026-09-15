@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <base target="_top">
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#16202B">
+  <title><?= title ?></title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --ink:#16202B; --ink-2:#3D4E60; --ink-3:#6B7C8D;
+    --paper:#E9EDF1; --card:#FFFFFF; --rule:#D3DAE1;
+    --safe:env(safe-area-inset-bottom,0px);
+  }
+  *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+  html,body{height:100%}
+  body{
+    font-family:'IBM Plex Sans',system-ui,-apple-system,sans-serif;
+    background:var(--paper);color:var(--ink);-webkit-font-smoothing:antialiased;
+    display:flex;align-items:center;justify-content:center;
+    padding:24px 18px calc(24px + var(--safe));line-height:1.5;
+  }
+  .card{
+    background:var(--card);border:1.5px solid var(--rule);border-radius:14px;
+    max-width:420px;width:100%;padding:30px 26px 26px;
+  }
+  .mark{
+    font-family:'IBM Plex Mono',monospace;font-size:.62rem;font-weight:500;
+    text-transform:uppercase;letter-spacing:.16em;color:var(--ink-3);
+    padding-bottom:16px;border-bottom:1.5px dashed var(--rule);margin-bottom:20px;
+  }
+  h1{font-size:1.3rem;font-weight:600;letter-spacing:-.015em;margin-bottom:9px}
+  p{font-size:.92rem;color:var(--ink-2);margin-bottom:14px}
+  .btn{
+    display:block;width:100%;text-align:center;text-decoration:none;
+    background:var(--ink);color:#fff;padding:13px 16px;border-radius:9px;
+    font-size:.94rem;font-weight:600;margin-top:20px;border:none;cursor:pointer;
+  }
+  .btn:active{opacity:.85}
+  .btn.sec{background:var(--card);color:var(--ink);border:1.5px solid var(--rule);margin-top:9px}
+  .tip{
+    background:var(--paper);border-left:3px solid var(--ink-3);
+    padding:11px 13px;border-radius:0 7px 7px 0;
+    font-size:.83rem;color:var(--ink-2);margin-top:20px;
+  }
+  .tip b{color:var(--ink);font-weight:600}
+  .foot{
+    margin-top:20px;padding-top:15px;border-top:1px solid var(--rule);
+    font-size:.8rem;color:var(--ink-3);
+  }
+  a{color:var(--ink)}
+  :focus-visible{outline:2.5px solid var(--ink);outline-offset:2px}
+  @media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
+</style>
+</head>
+<body>
+  <div class="card">
+    <div class="mark"><?= title ?></div>
+
+    <h1><?= heading ?></h1>
+    <p><?= message ?></p>
+
+    <? if (showSwitch) { ?>
+      <a class="btn" href="<?= signInUrl ?>">Sign in with your <?= institution ?> account</a>
+      <? if (chooserUrl) { ?>
+        <a class="btn sec" href="<?= chooserUrl ?>">Choose a different Google account</a>
+      <? } ?>
+
+      <div class="tip">
+        <b>Using a phone with more than one Google account?</b>
+        Your phone may have opened this with a personal account. The button above
+        switches to your <?= institution ?> account without signing you out of anything else.
+      </div>
+    <? } ?>
+
+    <? if (supportContact) { ?>
+      <div class="foot">Need help getting in? Contact <?= supportContact ?>.</div>
+    <? } ?>
+  </div>
+</body>
+</html>

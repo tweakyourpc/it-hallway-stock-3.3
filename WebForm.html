@@ -1,0 +1,2133 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <base target="_top">
+  <meta charset="utf-8">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="theme-color" content="#16202B">
+  <title>IT Hallway</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+/* ============================================================
+   IT Hallway — shelf-tag interface
+
+   One rule governs the palette: colour encodes stock state and
+   nothing else. Green, amber and red always mean healthy, low and
+   out. Every button, tab and label is ink on paper. If something
+   on screen is coloured, it is telling you about your shelves.
+   ============================================================ */
+
+:root{
+  --ink:#16202B;
+  --ink-2:#3D4E60;
+  --ink-3:#6B7C8D;
+  --paper:#E9EDF1;
+  --card:#FFFFFF;
+  --rule:#D3DAE1;
+  --rule-2:#E6EBEF;
+
+  /* Status: borrowed from the LEDs on the UPS units in the hallway */
+  --ok:#1F7A4D;
+  --low:#B5730F;
+  --out:#B3261E;
+  --ok-bg:#E8F3ED;
+  --low-bg:#FBF1E0;
+  --out-bg:#FBEBE9;
+
+  --sans:'IBM Plex Sans',system-ui,-apple-system,sans-serif;
+  --mono:'IBM Plex Mono',ui-monospace,Menlo,monospace;
+  --safe:env(safe-area-inset-bottom,0px);
+  --r:10px;
+}
+
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+html{height:100%}
+body{
+  font-family:var(--sans);background:var(--paper);color:var(--ink);
+  min-height:100%;-webkit-font-smoothing:antialiased;font-size:15px;line-height:1.45;
+  padding-bottom:calc(84px + var(--safe));
+}
+input,select,textarea,button{font-family:inherit;font-size:inherit;color:inherit}
+button{cursor:pointer;border:none;background:none}
+:focus-visible{outline:2.5px solid var(--ink);outline-offset:2px;border-radius:4px}
+
+/* ---------- label type: the printed-tag voice ---------- */
+.tag{
+  font-family:var(--mono);font-size:.66rem;font-weight:500;
+  text-transform:uppercase;letter-spacing:.1em;color:var(--ink-3);
+}
+.num{font-family:var(--mono);font-variant-numeric:tabular-nums;font-feature-settings:"tnum"}
+
+/* ---------- top bar ---------- */
+.appbar{background:var(--ink);color:#fff;position:sticky;top:0;z-index:60;padding:10px 14px 0}
+.bar-top{display:flex;align-items:center;gap:10px;justify-content:space-between}
+.brand{font-weight:600;font-size:1rem;letter-spacing:-.01em}
+.brand span{display:block;font-family:var(--mono);font-size:.6rem;font-weight:400;
+  letter-spacing:.14em;text-transform:uppercase;color:rgba(255,255,255,.5);margin-top:1px}
+.who{display:flex;align-items:center;gap:7px;background:rgba(255,255,255,.1);
+  padding:5px 10px;border-radius:20px;font-size:.76rem;color:#fff}
+.who b{font-weight:600}
+.who .role{font-family:var(--mono);font-size:.6rem;text-transform:uppercase;
+  letter-spacing:.08em;color:rgba(255,255,255,.6)}
+
+.dept-row{display:flex;flex-wrap:wrap;gap:6px;margin-top:10px}
+.dept{padding:4px 12px;border-radius:20px;font-size:.78rem;font-weight:500;
+  background:rgba(255,255,255,.09);color:rgba(255,255,255,.7);white-space:nowrap}
+.dept[aria-pressed="true"]{background:#fff;color:var(--ink);font-weight:600}
+
+.tabs{display:flex;gap:2px;margin-top:12px}
+.tab{flex:1;padding:9px 4px 10px;font-size:.82rem;font-weight:500;
+  color:rgba(255,255,255,.55);border-bottom:2.5px solid transparent;position:relative}
+.tab[aria-selected="true"]{color:#fff;font-weight:600;border-bottom-color:#fff}
+.tab .count{font-family:var(--mono);font-size:.66rem;margin-left:4px;
+  background:rgba(255,255,255,.18);padding:1px 5px;border-radius:8px}
+
+/* ---------- page ---------- */
+.page{max-width:620px;margin:0 auto;padding:14px 12px 0}
+
+.search{position:relative;margin-bottom:12px}
+.search input{width:100%;padding:11px 36px 11px 13px;border:1.5px solid var(--rule);
+  border-radius:var(--r);background:var(--card);font-size:.92rem}
+.search input:focus{outline:none;border-color:var(--ink)}
+.search button{position:absolute;right:6px;top:50%;transform:translateY(-50%);
+  padding:6px 8px;color:var(--ink-3);font-size:1.1rem;line-height:1;display:none}
+.search button.on{display:block}
+
+/* ---------- summary strip ---------- */
+.strip{display:flex;background:var(--card);border:1.5px solid var(--rule);
+  border-radius:var(--r);overflow:hidden;margin-bottom:12px}
+.strip div{flex:1;padding:9px 6px;text-align:center;border-right:1px solid var(--rule-2)}
+.strip div:last-child{border-right:none}
+.strip .v{font-family:var(--mono);font-size:1.15rem;font-weight:600;line-height:1.1}
+.strip .k{font-family:var(--mono);font-size:.58rem;text-transform:uppercase;
+  letter-spacing:.09em;color:var(--ink-3);margin-top:2px}
+.strip .low .v{color:var(--low)} .strip .out .v{color:var(--out)}
+
+/* Dropdowns, not horizontal chip rails. A chip rail silently hides options off
+   the right edge — there's no scrollbar on desktop and no affordance that more
+   exists. A native select also gets the OS picker on a phone. */
+.picker{position:relative}
+.picker select{
+  width:100%;padding:10px 36px 10px 12px;border:1.5px solid var(--rule);
+  border-radius:var(--r);background:var(--card);color:var(--ink);
+  font-size:.9rem;font-weight:500;appearance:none;-webkit-appearance:none;
+}
+.picker select:focus{outline:none;border-color:var(--ink)}
+.picker:after{
+  content:'';position:absolute;right:15px;top:50%;width:7px;height:7px;
+  border-right:2px solid var(--ink-3);border-bottom:2px solid var(--ink-3);
+  transform:translateY(-70%) rotate(45deg);pointer-events:none;
+}
+.picker.filter select{font-weight:600}
+
+/* Two mutually exclusive actions: a segmented control can't overflow. */
+.seg{display:flex;border:1.5px solid var(--rule);border-radius:8px;overflow:hidden}
+.seg button{flex:1;padding:10px 6px;font-size:.83rem;font-weight:500;
+  color:var(--ink-2);background:var(--card)}
+.seg button + button{border-left:1.5px solid var(--rule)}
+.seg button[aria-pressed="true"]{background:var(--ink);color:#fff;font-weight:600}
+
+/* Read-only wrapping labels (e.g. the permission list) */
+.taglist{display:flex;flex-wrap:wrap;gap:5px}
+.taglist span{padding:4px 9px;border:1.5px solid var(--rule);border-radius:20px;
+  background:var(--card);font-size:.72rem;font-weight:500;color:var(--ink-2)}
+
+/* ---------- the shelf tag: signature element ---------- */
+.tags{display:flex;flex-direction:column;gap:8px}
+.item{
+  display:flex;background:var(--card);border:1.5px solid var(--rule);
+  border-radius:var(--r);overflow:hidden;text-align:left;width:100%;
+  transition:transform .09s ease,border-color .12s ease;
+}
+.item:active{transform:scale(.988)}
+.item .spine{width:5px;flex-shrink:0;background:var(--ok)}
+.item.low .spine{background:var(--low)} .item.out .spine{background:var(--out)}
+.item .body{flex:1;padding:11px 12px;min-width:0}
+.item .top{display:flex;justify-content:space-between;align-items:flex-start;gap:10px}
+.item .nm{font-weight:600;font-size:.95rem;line-height:1.3;letter-spacing:-.005em}
+.item .meta{margin-top:2px}
+.item .qty{text-align:right;flex-shrink:0}
+.item .qty .n{font-family:var(--mono);font-variant-numeric:tabular-nums;
+  font-size:1.5rem;font-weight:600;line-height:1}
+.item.low .qty .n{color:var(--low)} .item.out .qty .n{color:var(--out)}
+.item .qty .u{font-family:var(--mono);font-size:.56rem;text-transform:uppercase;
+  letter-spacing:.1em;color:var(--ink-3);display:block;margin-top:1px}
+
+.thumb{width:38px;height:38px;border-radius:6px;object-fit:cover;
+  border:1px solid var(--rule);flex-shrink:0;background:var(--paper)}
+
+/* the tick meter — discrete units, because we count discrete things */
+.meter{display:flex;gap:2px;align-items:flex-end;margin-top:9px;height:11px}
+.meter i{flex:1;max-width:9px;height:7px;background:var(--ok);border-radius:1.5px}
+.meter i.e{background:var(--rule)}
+.meter i.mark{height:11px;position:relative}
+.meter i.mark:after{content:'';position:absolute;inset:0;border-right:1.5px solid var(--ink);
+  border-radius:0}
+.item.low .meter i:not(.e){background:var(--low)}
+.item.out .meter i:not(.e){background:var(--out)}
+.meter.bar{gap:0;height:7px}
+.meter.bar i{max-width:none;border-radius:0;height:7px}
+.meter.bar i:first-child{border-radius:2px 0 0 2px}
+.meter.bar i:last-child{border-radius:0 2px 2px 0}
+
+/* Weeks of cover, on the tag itself. The whole argument for this system is
+   that a shelf tag answers "how long will this last" and not just "how many".
+   Quiet by default and coloured only when it is close, because colour in here
+   means stock state and nothing else. */
+.item .cover{font-family:var(--mono);font-size:.62rem;letter-spacing:.06em;
+  text-transform:uppercase;color:var(--ink-3);margin-top:6px;display:block}
+.item .cover b{font-weight:600;color:var(--ink-2)}
+.item .cover.soon b{color:var(--low)}
+.item .cover.now b{color:var(--out)}
+.item .cover .tr{opacity:.75}
+
+.bench-flag{display:inline-flex;align-items:center;gap:4px;margin-top:7px;
+  font-family:var(--mono);font-size:.62rem;text-transform:uppercase;letter-spacing:.08em;
+  color:var(--ink-2);background:var(--paper);padding:2px 7px;border-radius:4px}
+
+/* ---------- queue / order rows ---------- */
+.row{background:var(--card);border:1.5px solid var(--rule);border-radius:var(--r);
+  padding:12px;margin-bottom:8px}
+.row .hd{display:flex;justify-content:space-between;align-items:flex-start;gap:10px}
+.row .nm{font-weight:600;font-size:.92rem}
+.row .sub{margin-top:3px}
+.row .acts{display:flex;gap:7px;margin-top:11px;flex-wrap:wrap}
+.pill{padding:4px 9px;border-radius:5px;font-family:var(--mono);font-size:.62rem;
+  font-weight:600;text-transform:uppercase;letter-spacing:.07em}
+.pill.needed{background:var(--low-bg);color:var(--low)}
+.pill.ordered{background:var(--ok-bg);color:var(--ok)}
+.pill.partial{background:var(--low-bg);color:var(--low)}
+.pill.pending{background:var(--paper);color:var(--ink-2);border:1px solid var(--rule)}
+.pill.declined{background:var(--out-bg);color:var(--out)}
+.pill.age{background:var(--paper);color:var(--ink-2)}
+.pill.age.stale{background:var(--out-bg);color:var(--out)}
+.pill.late{background:var(--out-bg);color:var(--out)}
+.pill.vendor{background:var(--paper);color:var(--ink-2);border:1px solid var(--rule)}
+.pill.void{background:var(--paper);color:var(--ink-3);text-decoration:line-through}
+
+/* ---------- buttons ---------- */
+.btn{padding:11px 15px;border-radius:8px;font-weight:600;font-size:.88rem;
+  background:var(--ink);color:#fff;transition:opacity .12s}
+.btn:active{opacity:.82}
+.btn.sec{background:var(--card);color:var(--ink);border:1.5px solid var(--rule)}
+.btn.sm{padding:7px 12px;font-size:.8rem;border-radius:6px}
+.btn.wide{width:100%}
+.btn:disabled{opacity:.4;cursor:default}
+.btn-row{display:flex;gap:8px;margin-top:14px}
+.btn-row .btn{flex:1}
+
+/* ---------- sheets & modals ---------- */
+.veil{position:fixed;inset:0;background:rgba(22,32,43,.45);z-index:200;
+  display:none;align-items:flex-end;justify-content:center;backdrop-filter:blur(2px)}
+.veil.open{display:flex}
+.sheet{background:var(--card);width:100%;max-width:620px;border-radius:16px 16px 0 0;
+  padding:18px 16px calc(18px + var(--safe));max-height:92vh;overflow-y:auto;
+  animation:rise .2s cubic-bezier(.2,.8,.3,1)}
+@keyframes rise{from{transform:translateY(16px);opacity:.6}to{transform:none;opacity:1}}
+.grip{width:34px;height:4px;background:var(--rule);border-radius:2px;margin:0 auto 14px}
+.sheet h2{font-size:1.05rem;font-weight:600;letter-spacing:-.01em}
+.sheet h2 + .tag{margin-top:2px;display:block}
+.hr{height:1px;background:var(--rule-2);margin:15px 0}
+
+/* dashed rule: the perforation on a printed tag */
+.perf{height:0;border-top:1.5px dashed var(--rule);margin:15px 0}
+
+.f{margin-bottom:12px}
+.f label{display:block;margin-bottom:5px}
+.f input,.f select,.f textarea{width:100%;padding:10px 11px;border:1.5px solid var(--rule);
+  border-radius:7px;background:var(--card);font-size:.92rem}
+.f input:focus,.f select:focus,.f textarea:focus{outline:none;border-color:var(--ink)}
+.f textarea{min-height:62px;resize:vertical}
+.f2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+
+/* stepper */
+.step{display:flex;align-items:center;gap:0;border:1.5px solid var(--rule);
+  border-radius:8px;overflow:hidden;width:fit-content}
+.step button{width:46px;height:46px;font-size:1.3rem;font-weight:500;background:var(--paper)}
+.step button:active{background:var(--rule)}
+.step input{width:66px;height:46px;text-align:center;border:none;
+  font-family:var(--mono);font-size:1.15rem;font-weight:600;background:var(--card)}
+.step input:focus{outline:none}
+
+
+.split{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:4px}
+/* Three destinations off the bench: back to stock, straight out to a lab, or
+   scrap. At phone width three boxes across is too narrow to tap, so they stack
+   into a single column below 420px rather than shrinking. */
+.split.three{grid-template-columns:1fr 1fr 1fr;gap:8px}
+@media (max-width:420px){ .split.three{grid-template-columns:1fr} }
+.split > div{border:1.5px solid var(--rule);border-radius:9px;padding:11px}
+.split.three > div{padding:9px}
+.split .hdlabel{display:flex;align-items:center;gap:6px;margin-bottom:8px}
+.split .dot{width:8px;height:8px;border-radius:50%}
+.split .shelf .dot{background:var(--ok)} .split .scrap .dot{background:var(--out)}
+.split .issue .dot{background:var(--ink-2)}
+.split input{width:100%;padding:8px;border:1.5px solid var(--rule);border-radius:6px;
+  font-family:var(--mono);font-size:1.05rem;font-weight:600;text-align:center}
+
+/* Primary action stays reachable when a sheet is taller than the screen.
+   The take flow has to work one-handed; scrolling past the note field to find
+   the button is the difference between logging a pull and not bothering. */
+.btn-row.stick{position:sticky;bottom:0;background:var(--card);
+  padding:10px 0 calc(4px + var(--safe));margin-top:14px;
+  box-shadow:0 -10px 12px -8px rgba(22,32,43,.16)}
+
+/* A second-level choice inside a sheet: where the returned units go. */
+.seg.sub button{font-size:.78rem;padding:9px 6px}
+.seg button:disabled{opacity:.45;cursor:default}
+
+/* Evidence line under a forecast figure. Deliberately quiet — it is there to
+   be checked, not read every time. */
+.why{font-family:var(--mono);font-size:.6rem;letter-spacing:.06em;
+  color:var(--ink-3);margin-top:5px;text-transform:uppercase}
+.why.warn{color:var(--low)}
+
+.check{display:flex;align-items:flex-start;gap:9px;padding:11px;margin-top:12px;
+  border:1.5px solid var(--rule);border-radius:9px;background:var(--card)}
+.check input{width:20px;height:20px;flex-shrink:0;margin-top:1px;accent-color:var(--ink)}
+.check label{font-size:.84rem;line-height:1.4}
+
+/* ---------- misc ---------- */
+.fab{position:fixed;right:16px;bottom:calc(18px + var(--safe));width:54px;height:54px;
+  border-radius:50%;background:var(--ink);color:#fff;font-size:1.7rem;font-weight:300;
+  z-index:80;box-shadow:0 4px 14px rgba(22,32,43,.3);display:flex;
+  align-items:center;justify-content:center;line-height:1}
+
+.toast{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(88px + var(--safe));
+  background:var(--ink);color:#fff;padding:11px 17px;border-radius:9px;font-size:.86rem;
+  font-weight:500;z-index:300;max-width:88%;text-align:center;opacity:0;
+  pointer-events:none;transition:opacity .2s,transform .2s}
+.toast.on{opacity:1;transform:translateX(-50%) translateY(-4px);pointer-events:auto}
+.toast.bad{background:var(--out)}
+/* The undo affordance. Sits in the confirmation, because that is the one moment
+   the person is definitely still looking at the screen and definitely still
+   knows what they just did. */
+.toast .act{margin-left:12px;padding:4px 10px;border-radius:6px;font-weight:600;
+  font-size:.82rem;background:rgba(255,255,255,.18);color:#fff}
+.toast .act:active{background:rgba(255,255,255,.3)}
+
+/* A section rule inside a scrolling list of rows. */
+.section-heading{font-family:var(--mono);font-size:.62rem;font-weight:500;text-transform:uppercase;
+  letter-spacing:.11em;color:var(--ink-3);margin:18px 0 8px;display:flex;
+  align-items:center;justify-content:space-between;gap:10px}
+.section-heading:first-child{margin-top:4px}
+
+.empty{text-align:center;padding:44px 22px;color:var(--ink-3)}
+.empty .big{font-family:var(--mono);font-size:.72rem;text-transform:uppercase;
+  letter-spacing:.12em;color:var(--ink-2);margin-bottom:7px}
+.empty p{font-size:.88rem;line-height:1.5}
+
+.skel{background:var(--card);border:1.5px solid var(--rule);border-radius:var(--r);
+  height:78px;margin-bottom:8px;position:relative;overflow:hidden}
+.skel:after{content:'';position:absolute;inset:0;
+  background:linear-gradient(90deg,transparent,rgba(0,0,0,.035),transparent);
+  animation:sweep 1.3s infinite}
+@keyframes sweep{to{transform:translateX(100%)}}
+
+.cfg{padding:11px 0;border-bottom:1px solid var(--rule-2)}
+.cfg-q{font-size:.88rem;font-weight:500;line-height:1.35;margin-bottom:7px}
+.cfg select,.cfg input{width:100%;padding:9px 10px;border:1.5px solid var(--rule);
+  border-radius:7px;background:#fffaeb;font-size:.9rem;font-weight:600}
+.cfg select:focus,.cfg input:focus{outline:none;border-color:var(--ink)}
+.cfg-help{font-size:.76rem;line-height:1.5;color:var(--ink-3);margin-top:6px}
+
+/* An error where the person is looking, not only in a toast that times out.
+   The server's messages are prose worth reading — "only 3 of X left on the
+   shelf" — and four seconds is not long enough to read one on a phone while
+   holding something in the other hand. */
+.err{background:var(--out-bg);border-left:3px solid var(--out);padding:10px 12px;
+  border-radius:0 6px 6px 0;font-size:.85rem;line-height:1.45;color:var(--out);
+  font-weight:500;margin:0 0 12px}
+
+.note{background:var(--paper);border-left:3px solid var(--ink-3);padding:9px 11px;
+  border-radius:0 6px 6px 0;font-size:.8rem;line-height:1.5;color:var(--ink-2);margin:12px 0}
+
+@media (prefers-reduced-motion:reduce){
+  *,*:before,*:after{animation-duration:.01ms!important;transition-duration:.01ms!important}
+}
+
+/* 3.3: readable shelf tags, clear work states, and a desktop detail panel. */
+.appbar{padding:12px 20px 0}
+.bar-top,.dept-row,.tabs{max-width:1200px;margin-left:auto;margin-right:auto}
+.tabs{justify-content:flex-start}.tab{flex:0 1 160px;min-height:44px;font-size:.95rem}
+.page{max-width:1200px;padding:22px 24px 60px}
+.page-title{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:16px}
+.page-title h1{font-size:1.45rem;letter-spacing:-.025em}.page-title>span{font-size:.88rem;color:var(--ink-2)}
+.tag{font-size:.76rem;letter-spacing:.025em}
+.btn,.btn.sm{min-height:44px;font-size:.9rem}.btn.sec{font-family:var(--sans);text-transform:none;letter-spacing:0;color:var(--ink);margin:0}
+.filters{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:14px}.filters .search{margin:0}
+.picker select,.f input,.f select,.f textarea,.search input{font-size:16px;min-height:44px}
+.f label,.f label.tag{font-family:var(--sans);font-size:.88rem;font-weight:600;text-transform:none;letter-spacing:0;color:var(--ink-2)}
+.item .nm{display:block;font-size:1rem}.item-location{display:block;font-size:.83rem;color:var(--ink-2);margin-top:3px}
+.item .qty .u{font-family:var(--sans);font-size:.75rem;text-transform:none;letter-spacing:0}
+.stock-reading{display:flex;justify-content:space-between;gap:12px;font-size:.78rem;color:var(--ink-2);margin-top:8px}
+.state{font-family:var(--sans);font-size:.8rem;font-weight:600}.state.low{color:var(--low)}.state.out{color:var(--out)}
+.item .cover,.cover{display:block;font-family:var(--sans);font-size:.85rem;text-transform:none;letter-spacing:0;margin-top:7px;color:var(--ink-2)}
+.item .body{padding:13px 15px}.item .cover b{color:var(--ink)}.item.out .cover b{color:var(--out)}
+.meter.bar{position:static;background:none;padding:0;z-index:auto;min-height:7px;height:7px}
+.context-line{display:block;font-size:.83rem;line-height:1.45;color:var(--ink-2);margin-top:6px}
+.order-link{display:block;font-size:.85rem;border-top:1px solid var(--rule-2);margin-top:10px;padding-top:8px;font-weight:500}
+.context-link,.context-nav button{font-size:.88rem;min-height:44px;text-decoration:underline;text-underline-offset:3px;color:var(--ink);padding:7px 0;text-align:left}
+.context-nav{display:flex;gap:24px;margin-bottom:8px}.supply-links{display:flex;flex-direction:column;font-size:.88rem;margin-top:8px}
+.job,.receipt{display:flex;gap:12px;justify-content:space-between;align-items:center;border:1px solid var(--rule);border-radius:10px;padding:12px 14px;margin:12px 0;background:#fff}
+.job span span{display:block;font-size:.88rem;color:var(--ink-2)}.receipt{display:block;border-left:4px solid var(--ink)}
+.receipt .acts,.row .acts{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px}
+.section-heading{font-family:var(--sans);text-transform:none;letter-spacing:0;color:var(--ink-2);font-size:.85rem;margin:24px 0 10px}
+.section-heading h2{font-size:1.05rem;color:var(--ink);font-weight:600}.section-heading span{white-space:nowrap}
+.row{padding:16px}.row .nm{font-size:1rem}.row-meta,.row-note{font-size:.86rem;color:var(--ink-2);margin-top:5px;overflow-wrap:anywhere}
+.row-note{color:var(--ink)}.row .hd{flex-wrap:wrap}.pill{font-family:var(--sans);text-transform:none;letter-spacing:0;font-size:.78rem}
+.pill.ordered,.pill.needed,.pill.partial{background:var(--paper);color:var(--ink-2)}
+.evidence{font-size:.83rem;color:var(--ink-2);margin-top:10px}.evidence summary{cursor:pointer;padding:7px 0;min-height:36px}.evidence p{padding:6px 0;white-space:pre-wrap;overflow-wrap:anywhere}
+.order-stock{border-top:1px solid var(--rule-2);padding-top:8px;margin-top:10px;font-size:.86rem}
+.receipt-counts{margin-top:12px;font-size:.93rem}.selected-row{outline:2px solid var(--ink);outline-offset:2px}
+.availability{display:flex;align-items:center;gap:12px}.availability>strong{font-size:2.1rem;line-height:1.2}.availability .state{display:block}
+.sheet h2{font-size:1.2rem}.sheet .note{font-size:.88rem}.sheet{padding:16px 18px calc(16px + var(--safe))}
+.outcomes{margin-top:12px}.outcome{display:flex;align-items:center;justify-content:space-between;gap:16px;border-top:1px solid var(--rule-2);padding:10px 0}
+.outcome label{font-weight:600;font-size:.95rem}.outcome input{width:88px;min-height:46px;border:1.5px solid var(--rule);border-radius:7px;padding:8px;text-align:center;font-size:1.1rem}
+.remaining{background:var(--paper);padding:12px;border-radius:8px;margin:12px 0;font-weight:600;font-size:.92rem}
+.receipt-summary{display:flex;border:1px solid var(--rule);border-radius:9px;margin:18px 0;padding:12px 0}.receipt-summary>div{flex:1;text-align:center;border-right:1px solid var(--rule)}.receipt-summary>div:last-child{border:0}
+.receipt-summary b{display:block;font-family:var(--mono);font-size:1.3rem}.receipt-summary span{font-size:.8rem;color:var(--ink-2)}
+.receive-entry{display:flex;gap:10px}.receive-entry input{min-width:0}.receive-entry button{white-space:nowrap}
+.empty.compact{padding:16px;text-align:left;background:#fff;border:1px dashed var(--rule);border-radius:9px}
+.why{font-family:var(--sans);font-size:.82rem;text-transform:none;letter-spacing:0}
+[data-view="usage"] .meter i:not(.e){background:var(--ink-2)}
+[hidden]{display:none!important}
+@media(min-width:1000px){
+  .item .body{display:grid;grid-template-columns:minmax(270px,2fr) minmax(140px,1fr) minmax(220px,1.4fr);column-gap:28px}
+  .item .top{grid-column:1;grid-row:1/3}.item .stock-reading{grid-column:2;grid-row:1;margin-top:0}
+  .item .meter{grid-column:2;grid-row:2}.item .cover{grid-column:3;grid-row:1;margin-top:0}
+  .item .context-line{grid-column:3;grid-row:2}.item .order-link{grid-column:1/-1}
+  .veil{background:none;backdrop-filter:none;pointer-events:none;align-items:stretch;justify-content:flex-end}
+  .sheet{width:460px;max-width:460px;max-height:100vh;border-radius:0;padding-top:24px;border-left:1px solid var(--rule);box-shadow:-8px 0 24px #16202b14;pointer-events:auto}
+  .sheet .grip{display:none}.detail-open .page{max-width:calc(100% - 460px);margin-left:0;margin-right:460px}
+  .detail-open .item .body{display:block}.detail-open .item .stock-reading{margin-top:8px}.detail-open .item .cover{margin-top:7px}
+  .detail-open .appbar{padding-right:480px}.detail-open .tab{flex:1}.detail-open .page-title>span{max-width:50%;text-align:right}
+}
+@media(max-width:600px){
+  .appbar{padding:10px 12px 0}.page{padding:14px 12px 40px}.tab{flex:1;font-size:.85rem}.tab .count{margin-left:3px}
+  .page-title{margin-bottom:12px}.page-title h1{font-size:1.2rem}.page-title>span{font-size:.8rem;text-align:right}
+  .filters{grid-template-columns:1fr 1fr}.filters .search{grid-column:1/-1}.filters .search+.picker{grid-column:1/-1}
+  .section-heading{gap:8px}.section-heading span{font-size:.76rem}.row{padding:13px}
+  .btn-row.stick{bottom:-1px}.sheet{max-height:94dvh}.job{align-items:flex-start}.job>span{min-width:0}
+  .toast{bottom:calc(24px + var(--safe));max-width:94%}
+}
+
+</style>
+</head>
+<body>
+
+<div class="appbar">
+  <div class="bar-top">
+    <div class="brand">IT Hallway<span id="orgTag">stockroom</span></div>
+    <button class="who" onclick="showMe()">
+      <b id="whoName">…</b><span class="role" id="whoRole"></span>
+    </button>
+  </div>
+  <div class="dept-row" id="deptRow"></div>
+  <div class="tabs" id="tabs"></div>
+</div>
+
+<div class="page">
+  <div id="view" aria-live="polite"><div class="skel"></div><div class="skel"></div><div class="skel"></div></div>
+</div>
+
+<button class="fab" id="fab" onclick="openAdd()" style="display:none" aria-label="Add item">+</button>
+
+<div class="veil" id="veil" onclick="closeSheet(event)">
+  <div class="sheet" id="sheet" role="dialog" aria-label="Stock action" tabindex="-1" onclick="event.stopPropagation()"></div>
+</div>
+
+<div class="toast" id="toast" role="status"></div>
+
+<script>
+/* ============================================================
+   State + plumbing
+   ============================================================ */
+var S = {boot:null, dept:'', tab:'stock', cat:'all', q:'', busy:false, extras:false,
+         cover:null, coverState:'loading', lastDest:'', recent:[], activity:null,
+         epoch:0, reloadSeq:0, coverSeq:0, viewSeq:0, panelSeq:0, extrasError:'',
+         job:null, receipt:null, orderQ:'', orderFilter:'open', closedOrders:null, closedState:'idle',
+         orderFocus:'', returnItem:'', availability:'all'};
+
+function $(id){return document.getElementById(id)}
+function esc(s){var d=document.createElement('div');d.textContent=(s==null?'':s);return d.innerHTML}
+function has(p){return S.boot && S.boot.user.permissions.indexOf(p)!==-1}
+
+/* The handful of items this person keeps touching, newest first.
+   Kept in the browser, not the sheet: it is a convenience for one person on one
+   phone, it must survive nothing, and it costs the server nothing. Every access
+   is wrapped because private windows and blocked site data both throw here. */
+var RECENT_KEY='ithallway.recent.v1';
+var START_KEY='ithallway.start.v1';
+var panelFocus=null;
+function loadRecent(){
+  try{ S.recent=JSON.parse(localStorage.getItem(RECENT_KEY)||'[]')||[] }catch(e){ S.recent=[] }
+}
+function noteRecent(id){
+  if(!id) return;
+  S.recent=[id].concat(S.recent.filter(function(x){return x!==id})).slice(0,6);
+  try{ localStorage.setItem(RECENT_KEY,JSON.stringify(S.recent)) }catch(e){}
+}
+
+function call(fn, args){
+  return new Promise(function(res, rej){
+    google.script.run.withSuccessHandler(res).withFailureHandler(rej)[fn].apply(null, args||[]);
+  });
+}
+
+var toastTimer;
+
+/**
+ * Confirmation, and optionally the one thing worth doing about it.
+ *
+ * `action` is {label, fn}. It gets a longer life than a plain toast, because a
+ * confirmation nobody has to read can go away quickly and an offer to undo
+ * cannot — the person has to notice it, decide, and reach the screen one-handed.
+ */
+function toast(msg, opts){
+  var o=opts||{};
+  var t=$('toast');
+  t.innerHTML=esc(msg);
+  if(o.action){
+    var b=document.createElement('button');
+    b.className='act'; b.textContent=o.action.label;
+    b.onclick=function(){ t.className='toast'; o.action.fn() };
+    t.appendChild(b);
+  }
+  t.className='toast on'+(o.bad?' bad':'');
+  clearTimeout(toastTimer);
+  toastTimer=setTimeout(function(){t.className='toast'},
+    o.bad?5000:(o.action?7000:2200));
+}
+
+/* Errors go where the person is looking. If a sheet is open the message lands
+   inside it and stays there; the toast is the fallback for everything else. */
+function fail(e){
+  var msg=(e && e.message) ? e.message : 'Something went wrong.';
+  if(!showSheetError(msg)) toast(msg,{bad:true});
+}
+
+function showSheetError(msg){
+  if(!$('veil').classList.contains('open')) return false;
+  var box=$('sheetErr');
+  if(!box){
+    box=document.createElement('div');
+    box.id='sheetErr'; box.className='err';
+    var sheet=$('sheet');
+    var grip=sheet.querySelector('.grip');
+    sheet.insertBefore(box, grip?grip.nextSibling:sheet.firstChild);
+  }
+  box.textContent=msg;
+  box.scrollIntoView({block:'nearest'});
+  return true;
+}
+
+function clearSheetError(){
+  var box=$('sheetErr'); if(box) box.remove();
+}
+
+/* ============================================================
+   Boot
+   ============================================================ */
+/* Two phases. The stock list needs the user, the items and the summary — that
+   is one sheet read on the server. Dropdown options, the bench queue and the
+   order list are for screens nobody has opened yet, so they arrive a moment
+   later and fill themselves in. The shelf list is on screen for most of it. */
+window.addEventListener('DOMContentLoaded', function(){
+  loadRecent();
+  call('bootstrap', ['']).then(function(b){
+    S.boot=b; S.boot.lists={}; S.boot.testing=[]; S.boot.reorders=[]; S.boot.alerts=[];
+    S.dept=b.user.department;
+    try{S.tab=localStorage.getItem(START_KEY)|| (has('reorder.order')?'orders':'stock')}catch(e){S.tab=has('reorder.order')?'orders':'stock'}
+    if(['stock','bench','orders','usage','log'].indexOf(S.tab)<0 || (S.tab==='bench'&&!has('testing.resolve'))) S.tab='stock';
+    $('whoName').textContent=b.user.name;
+    $('whoRole').textContent=b.user.role;
+    $('orgTag').title='Version '+b.version;
+    $('orgTag').textContent=b.orgName;
+    drawDepts(); drawTabs(); render();
+    loadExtras();
+    if(google.script.url) google.script.url.getLocation(function(loc){
+      var id=loc.parameter&&loc.parameter.item;
+      if(id) openLinkedItem(id);
+    });
+  }).catch(function(e){
+    $('view').innerHTML='<div class="empty"><div class="big">Can\'t sign you in</div><p>'
+      +esc(e.message)+'</p></div>';
+  });
+});
+
+function loadExtras(){
+  var epoch=S.epoch, dept=S.dept;
+  S.extras=false; S.extrasError='';
+  if(S.tab==='bench'||S.tab==='orders') render();
+  return call('bootstrapExtras',[dept]).then(function(x){
+    if(epoch!==S.epoch) return;
+    S.boot.lists=x.lists; S.boot.testing=x.testing; S.boot.reorders=x.reorders;
+    S.boot.unavailable=x.unavailable||{}; S.boot.alerts=x.alerts||[];
+    S.extras=true; drawTabs(); render(); updateItemContext(); applyCover(x.cover);
+  }).catch(function(e){
+    if(epoch!==S.epoch) return;
+    S.extrasError='Could not load order and bench information.';
+    drawTabs(); render(); updateItemContext();
+  });
+}
+
+/* Phase three: the cover figures.
+   Weeks-of-supply costs a pass over the transaction log, which is exactly what
+   the two-phase load exists to keep away from first paint. So the server hands
+   it over in phase two only if it is already cached; otherwise we ask for it
+   here, last, once everything else is on screen and usable. */
+function applyCover(cover){
+  var epoch=S.epoch, seq=++S.coverSeq, dataSeq=S.reloadSeq;
+  function accept(c){
+    if(epoch!==S.epoch || seq!==S.coverSeq || dataSeq!==S.reloadSeq) return;
+    S.cover=(c&&c.items)||{}; S.coverState='ready';
+    if(S.tab==='stock') renderList();
+    updateItemContext(); updateOrderContext();
+  }
+  if(cover&&cover.items){accept(cover); return Promise.resolve()}
+  S.cover=null; S.coverState='loading';
+  if(S.tab==='stock') renderList();
+  updateItemContext();
+  return call('getCoverMap',[S.dept]).then(accept).catch(function(){
+    if(epoch!==S.epoch || seq!==S.coverSeq || dataSeq!==S.reloadSeq) return;
+    S.coverState='error'; updateItemContext();
+    if(S.tab==='stock') renderList();
+  });
+}
+
+/* After a save the server already hands back the updated item — it always did,
+   the app just threw it away and asked for everything again. Patching it in
+   locally means the count on screen is right immediately, and the full refresh
+   happens behind the scenes instead of behind a spinner. */
+function patchItem(item){
+  if(!item||!item.id) return;
+  var hit=false;
+  S.boot.items=S.boot.items.map(function(x){
+    if(x.id!==item.id) return x;
+    hit=true; return item;
+  });
+  if(!hit) S.boot.items.push(item);
+  S.cover=null; S.coverState='loading'; S.coverSeq++; S.reloadSeq++;
+  recount(); render();
+}
+
+function recount(){
+  var s={total:0, ok:0, low:0, out:0, unitsInTesting:0,
+         openReorders:(S.boot.summary&&S.boot.summary.openReorders)||0};
+  S.boot.items.forEach(function(i){
+    s.total++;
+    if(i.state==='out') s.out++; else if(i.state==='low') s.low++; else s.ok++;
+    s.unitsInTesting+=i.testing;
+  });
+  S.boot.summary=s;
+}
+
+/* Quiet resync. Never yanks the view out from under an open sheet. */
+function reload(){
+  S.activity=null; S.closedOrders=null; S.closedState='idle';
+  var epoch=S.epoch, seq=++S.reloadSeq;
+  S.cover=null; S.coverState='loading'; S.coverSeq++;
+  updateItemContext();
+  return call('refresh',[S.dept]).then(function(r){
+    if(epoch!==S.epoch||seq!==S.reloadSeq) return;
+    S.boot.items=r.items; S.boot.summary=r.summary; S.boot.testing=r.testing;
+    S.boot.reorders=r.reorders; S.boot.unavailable=r.unavailable||{};
+    S.boot.alerts=r.alerts||[]; S.syncError='';
+    drawTabs(); if(!$('veil').classList.contains('open')) render();
+    updateItemContext(); return applyCover(null);
+  }).catch(function(){
+    if(epoch!==S.epoch||seq!==S.reloadSeq) return;
+    S.syncError='Could not refresh the latest stock. Retry before making another decision.';
+    S.coverState='error';
+    if(!$('veil').classList.contains('open')) render();
+    toast(S.syncError,{bad:true});
+  });
+}
+
+/* Switching department used to re-run the whole bootstrap, re-fetching the
+   lists, the departments, the config and the permissions — none of which
+   changed. Only the department's own data does. */
+function switchDept(id){
+  if(S.busy || id===S.dept) return;
+  closeSheet(); S.epoch++; S.reloadSeq++; S.viewSeq++; S.coverSeq++;
+  S.dept=id; S.cat='all'; S.q=''; S.availability='all'; S.cover=null; S.activity=null;
+  S.job=null; S.receipt=null; S.lastDest=''; S.closedOrders=null; S.closedState='idle';
+  S.returnItem=''; S.orderFocus=''; S.boot.items=[]; S.boot.summary={};
+  S.boot.testing=[]; S.boot.reorders=[]; S.boot.unavailable={}; S.boot.alerts=[];
+  S.extras=false; S.extrasError=''; S.boot.user.department=id;
+  drawDepts(); $('view').innerHTML='<div class="skel"></div><div class="skel"></div>';
+  return reload().then(function(){return loadExtras()});
+}
+
+function drawDepts(){
+  if(S.boot.departments.length<2){$('deptRow').style.display='none';return}
+  $('deptRow').innerHTML=S.boot.departments.map(function(d){
+    return '<button class="dept" aria-pressed="'+(d.id===S.dept)+'" onclick="switchDept(\''
+      +d.id+'\')">'+esc(d.label)+'</button>';
+  }).join('');
+}
+
+function drawTabs(){
+  var t=[{id:'stock',label:'Stock'}];
+  if(has('testing.resolve')) t.push({id:'bench',label:'Bench',n:S.boot.testing.length});
+  t.push({id:'orders',label:'Orders',n:S.boot.reorders.length});
+  t.push({id:'usage',label:'Usage'});
+  t.push({id:'log',label:'Log'});
+
+  $('tabs').innerHTML=t.map(function(x){
+    return '<button class="tab" role="tab" aria-selected="'+(x.id===S.tab)+'" onclick="go(\''
+      +x.id+'\')">'+x.label+(x.n?'<span class="count">'+x.n+'</span>':'')+'</button>';
+  }).join('');
+}
+
+function go(tab){if(S.busy)return;S.tab=tab;S.viewSeq++;drawTabs();render()}
+
+/* ============================================================
+   Render
+   ============================================================ */
+function render(){
+  $('view').dataset.view=S.tab;
+  $('fab').style.display='none';
+  if(S.tab==='stock') return renderStock();
+  if(S.tab==='bench') return renderBench();
+  if(S.tab==='orders') return renderOrders();
+  if(S.tab==='usage') return renderUsage();
+  if(S.tab==='log') return renderLog();
+}
+
+function renderStock(){
+  var summary=S.boot.summary, cats={}; S.boot.items.forEach(function(i){cats[i.category]=true});
+  $('view').innerHTML='<div class="page-title"><h1>Stock</h1>'+(has('item.create')?'<button class="btn sec" onclick="openAdd()">Add item</button>':'')+'</div>'
+    +(S.syncError?loadError(S.syncError,'reload()'):'')
+    +'<div class="search"><input id="q" type="search" aria-label="Search supplies" placeholder="Search name, category, shelf or SKU" value="'+esc(S.q)+'" oninput="onSearch(this.value)">'
+    +'<button class="'+(S.q?'on':'')+'" onclick="clearSearch()" aria-label="Clear search">×</button></div>'
+    +'<div class="filters"><div class="picker"><select aria-label="Category" onchange="setCat(this.value)"><option value="all">All categories</option>'
+    +Object.keys(cats).sort().map(function(c){return opt(c,c)}).join('')+'</select></div>'
+    +'<div class="picker"><select aria-label="Availability" onchange="S.availability=this.value;renderList()">'
+    +[['all','All availability'],['low','Low or out ('+((summary.low||0)+(summary.out||0))+')'],['out','Out of stock'],['ok','Above minimum']].map(function(o){return '<option value="'+o[0]+'"'+(S.availability===o[0]?' selected':'')+'>'+esc(o[1])+'</option>'}).join('')+'</select></div></div>'
+    +(S.job?'<div class="job"><span><b>Current job: '+esc(S.job.destination||'Destination not recorded')+'</b>'+(S.job.note?'<span>'+esc(S.job.note)+'</span>':'')+'</span><button class="btn sec sm" onclick="endJob()">End job</button></div>':'')
+    +receiptHtml()
+    +'<div class="context-nav">'+(has('testing.resolve')?'<button onclick="go(\'bench\')">Bench work'+(S.extras?' · '+S.boot.testing.filter(function(b){return b.status==='Pending'}).length+' batches':'')+' ›</button>':'')
+    +'<button onclick="go(\'orders\')">Orders'+(S.extras?' · '+S.boot.reorders.length+' open':'')+' ›</button></div>'
+    +(S.extrasError?loadError(S.extrasError,'loadExtras()'):'')+'<div id="list"></div>';
+  renderList();
+}
+
+/* Only the list is rebuilt on a keystroke. Before, a search redrew the whole
+   page including the search box itself, which destroyed the element the person
+   was typing into — hence the refocus-and-restore-cursor patch that used to
+   live here. Fixing the cause deleted the workaround. */
+function renderList(){
+  var items=S.boot.items.filter(function(i){
+    if(S.availability==='low'&&i.state==='ok')return false;
+    if(S.availability!=='all'&&S.availability!=='low'&&i.state!==S.availability)return false;
+    if(S.cat==='low' && i.state==='ok') return false;
+    if(S.cat!=='all' && S.cat!=='low' && i.category!==S.cat) return false;
+    if(S.q){
+      var hay=(i.name+' '+i.category+' '+i.location+' '+(i.sku||'')).toLowerCase();
+      if(hay.indexOf(S.q)===-1) return false;
+    }
+    return true;
+  });
+
+  var el=$('list'); if(!el) return;
+  if(!items.length){
+    el.innerHTML='<div class="empty"><div class="big">No matching supplies</div><p>'
+      +(S.q?'No stock matches "'+esc(S.q)+'". Try a shorter search.':'No supplies in this view. Try another filter.')+'</p><button class="btn sec" onclick="resetFilters()">Clear filters</button></div>';
+    return;
+  }
+
+  /* The five things this person keeps pulling, at the top.
+     The list is alphabetical, which is right for finding something you have not
+     touched before and wrong for the everyday case: someone restocking one lab
+     reaches for the same handful all afternoon and has to scroll past forty
+     items to find them. Only shown on the unfiltered view — once you have
+     searched or picked a category, you have said what you are looking for. */
+  var html='';
+  if(!S.q && S.cat==='all' && S.availability==='all' && S.recent.length){
+    var byId={}; items.forEach(function(i){byId[i.id]=i});
+    var recent=S.recent.map(function(id){return byId[id]}).filter(Boolean);
+    if(recent.length){
+      var recentIds={}; recent.forEach(function(i){recentIds[i.id]=true});
+      html+='<div class="section-heading"><span>Yours, recently</span></div>'
+        +'<div class="tags">'+recent.map(itemTag).join('')+'</div>'
+        +'<div class="section-heading"><span>Everything else</span></div>';
+      items=items.filter(function(i){return !recentIds[i.id]});
+    }
+  }
+  el.innerHTML=html+'<div class="tags">'+items.map(itemTag).join('')+'</div>';
+}
+
+function cell(v,k,cls){
+  return '<div class="'+(cls||'')+'"><div class="v num">'+v+'</div><div class="k">'+k+'</div></div>';
+}
+function opt(value,label){
+  return '<option value="'+esc(value)+'"'+(S.cat===value?' selected':'')+'>'+esc(label)+'</option>';
+}
+function setCat(c){S.cat=c;renderList()}
+function resetFilters(){S.q='';S.cat='all';S.availability='all';renderStock()}
+function onSearch(v){
+  S.q=String(v).toLowerCase().trim();
+  var btn=$('q').nextElementSibling; if(btn) btn.className=S.q?'on':'';
+  renderList();
+}
+function clearSearch(){
+  S.q=''; var el=$('q'); if(el){el.value='';el.focus()}
+  var btn=$('q')&&$('q').nextElementSibling; if(btn) btn.className='';
+  renderList();
+}
+
+/**
+ * The shelf tag. The tick meter under the name shows discrete units against
+ * the reorder target, with a notch at the minimum threshold — you can count
+ * the ticks the same way you'd count the boxes on the shelf.
+ */
+function itemTag(i){
+  var target=Math.max(i.reorderTo||0,i.min*2,i.shelf,1), ticks='';
+  if(target<=24){
+    for(var n=0;n<target;n++)ticks+='<i class="'+(n<i.shelf?'':'e')+(n===i.min-1?' mark':'')+'"></i>';
+    ticks='<div class="meter" aria-hidden="true">'+ticks+'</div>';
+  }else{
+    var pct=Math.min(100,Math.round(i.shelf/target*100));
+    ticks='<div class="meter bar" aria-hidden="true"><i style="flex:'+pct+'"></i><i class="e" style="flex:'+(100-pct)+'"></i></div>';
+  }
+  var unavailable=unavailableLine(i), orders=itemOrders(i.id);
+  return '<button class="item '+i.state+'" onclick="openItem(\''+i.id+'\')"><span class="spine"></span><span class="body">'
+    +'<span class="top">'+(i.imageUrl?'<img class="thumb" src="'+esc(i.imageUrl)+'" alt="" loading="lazy" onerror="this.style.display=\'none\'">':'')
+    +'<span style="flex:1;min-width:0"><span class="nm">'+esc(i.name)+'</span><span class="item-location">'+esc(i.location||i.category)+'</span></span>'
+    +'<span class="qty"><span class="n">'+i.shelf+'</span><span class="u">available</span></span></span>'
+    +'<span class="stock-reading"><span class="state '+i.state+'">'+stockState(i)+'</span><span>Minimum '+i.min+'</span></span>'
+    +ticks+coverLine(i)+(unavailable?'<span class="context-line">'+esc(unavailable)+'</span>':'')
+    +(S.extras&&orders.length?'<span class="order-link">'+esc(orderLabel(orders[0]))+' ›</span>':'')+'</span></button>';
+}
+
+/**
+ * "about 3 weeks left" under the count.
+ *
+ * This is the line the whole system is for. A count tells you what is there; it
+ * takes a rate to tell you whether that is a problem, and the rate is the part
+ * nobody can do in their head while standing in a hallway.
+ *
+ * Absent until the rates have loaded, and absent for anything the server would
+ * not put a number on — a blank is the honest answer for an item with three
+ * movements, and better than a figure that looks the same as a trustworthy one.
+ */
+function coverLine(i){
+  if(i.shelf<=0) return '<span class="cover now"><b>None available</b></span>';
+  if(S.coverState==='loading') return '<span class="cover">Updating estimate…</span>';
+  if(S.coverState==='error') return '<span class="cover">Estimate unavailable</span>';
+  var c=S.cover&&S.cover[i.id];
+  if(!c||!c.reliable||!c.cover) return '<span class="cover">Not enough history to estimate</span>';
+  return '<span class="cover"><b>'+esc(c.cover)+' left</b> · '+c.perWeek+'/week'
+    +(c.trend&&c.trend!=='steady'?' · '+esc(c.trend):'')+'</span>';
+}
+
+/* ============================================================
+   Item sheet — take / return
+   ============================================================ */
+
+function itemById(id){return S.boot.items.find(function(i){return i.id===id})}
+function itemOrders(id){return (S.boot.reorders||[]).filter(function(o){return o.itemId===id})}
+function stockState(i){return i.state==='out'?'Out of stock':(i.state==='low'?'Low':'Available')}
+function loadError(text,action){return '<div class="err">'+esc(text)+' <button class="btn sec sm" onclick="'+action+'">Retry</button></div>'}
+function unavailableLine(i){
+  if(!i.testing&&!S.extras) return '';
+  if(!S.extras) return i.testing+' unavailable · '+(S.extrasError?'details unavailable':'loading details…');
+  var t=(S.boot.unavailable||{})[i.id]||{bench:0,vendor:0};
+  if(t.bench+t.vendor!==i.testing) return i.testing+' unavailable · counts need review';
+  return [t.bench?t.bench+' awaiting testing':'',t.vendor?t.vendor+' with vendor':''].filter(Boolean).join(' · ');
+}
+function orderLabel(o){
+  if(o.status==='Pending approval') return o.requested+' requested · awaiting approval';
+  if(o.status==='Needed') return o.requested+' requested · ready to order';
+  return o.outstanding+' still due'+(o.overdueDays?' · '+o.overdueDays+' days late':(o.expectedDate?' · expected '+o.expectedDate:' · expected date not recorded'));
+}
+function deliveryGap(i){
+  var c=S.cover&&S.cover[i.id];
+  if(!c||!c.reliable) return '';
+  var inbound=itemOrders(i.id).filter(function(o){return o.outstanding>0&&(o.status==='Ordered'||o.status==='Partially Received')});
+  if(!inbound.length) return '';
+  if(inbound.some(function(o){return o.overdueDays>0})) return 'Delivery is overdue. Incoming stock is not available yet.';
+  var dated=inbound.filter(function(o){return o.expectedDate}).sort(function(a,b){return a.expectedDate.localeCompare(b.expectedDate)});
+  if(!dated.length) return 'Delivery date unknown; arrival before stock runs out is not confirmed.';
+  var due=new Date(dated[0].expectedDate+'T00:00:00');
+  var gap=Math.ceil((due-new Date())/86400000)-c.daysLeft;
+  return gap>0?'Possible '+gap+'-day gap before the expected delivery.':'';
+}
+function itemContext(i){
+  var c=S.cover&&S.cover[i.id], orders=itemOrders(i.id), gap=deliveryGap(i);
+  var h='<div class="availability"><strong class="num">'+i.shelf+'</strong><span>available <span class="state '+i.state+'">'+stockState(i)+'</span></span></div>'
+    +coverLine(i)+'<div class="context-line">'+esc(unavailableLine(i))+'</div>';
+  if(S.extras){
+    h+='<div class="supply-links">'+(orders.length?orders.map(function(o){return '<button class="context-link" onclick="showItemOrder(\''+i.id+'\',\''+o.id+'\')">'+esc(orderLabel(o))+' · View '+(o.status==='Needed'||o.status==='Pending approval'?'request':'order')+' ›</button>'}).join(''):'<span>No open request or order</span>')+'</div>';
+  }else h+='<div class="context-line">'+(S.extrasError?'Order status unavailable':'Loading order status…')+'</div>';
+  if(gap) h+='<p class="note">'+esc(gap)+'</p>';
+  if(c) h+='<details class="evidence"><summary>About this estimate</summary><p>'+esc(c.evidence||'No measurable rate yet')
+    +(c.ranOut?'. Stock ran out during the reporting period.':'')+(c.truncated?'. Older log rows were not included.':'')+'</p></details>';
+  return h;
+}
+function updateItemContext(){
+  var el=$('itemContext');
+  if(el&&CUR){var i=itemById(CUR.item.id);if(i){CUR.item=i;el.innerHTML=itemContext(i)}}
+  if($('dest')&&CUR&&S.extras){
+    var dest=$('dest');dest.innerHTML='<option value="">'+(CUR.mode==='take'&&S.boot.requireDestination?'Choose destination…':'Not recorded')+'</option>'+(S.boot.lists.destinations||[]).map(function(d){return '<option>'+esc(d)+'</option>'}).join('');
+    dest.value=CUR.dest;syncQty();
+  }
+}
+function updateOrderContext(){
+  document.querySelectorAll('[data-stock-context]').forEach(function(el){var i=itemById(el.dataset.stockContext);if(i)el.innerHTML=orderStockLine(i)});
+}
+function orderStockLine(i){return '<b>'+i.shelf+' available</b> · '+stockState(i)+coverLine(i)+(deliveryGap(i)?'<p class="context-line">'+esc(deliveryGap(i))+'</p>':'')}
+function showItemOrder(itemId,orderId){
+  S.returnItem=itemId; S.orderFocus=orderId; S.orderFilter='open'; S.orderQ=''; closeSheet(); go('orders');
+}
+function backToItem(){var id=S.returnItem;S.returnItem='';go('stock');openItem(id)}
+function openLinkedItem(id){
+  if(itemById(id)){go('stock');openItem(id);return}
+  var epoch=S.epoch;
+  call('getItem',[id]).then(function(i){
+    if(epoch!==S.epoch) return;
+    var dept=(S.boot.departments||[]).find(function(d){return d.id===i.department});
+    if(!dept){toast('This item is not in an active department.',{bad:true});return}
+    if(i.department===S.dept){toast('This item is no longer on the active stock list.',{bad:true});return}
+    var seq=S.epoch+1;
+    return switchDept(i.department).then(function(){if(seq!==S.epoch)return;go('stock');if(itemById(id))openItem(id);else toast('This item is no longer on the active stock list.',{bad:true})});
+  }).catch(fail);
+}
+function endJob(){S.job=null;S.lastDest='';S.receipt=null;render()}
+function continueJob(){
+  if(!S.receipt||!S.receipt.job)return;
+  S.job=S.receipt.job;S.receipt=null;S.q='';S.cat='all';S.availability='all';go('stock');$('q').focus();
+}
+function dismissReceipt(){S.receipt=null;render()}
+function receiptHtml(){
+  if(!S.receipt)return '';
+  return '<div class="receipt" role="status"><strong>'+esc(S.receipt.message)+'</strong><div class="acts">'
+    +(S.receipt.undo?'<button class="btn sec sm" onclick="undoReceipt()">Undo</button>':'')
+    +(S.receipt.job?'<button class="btn sm" onclick="continueJob()">Take another for this job</button>':'')
+    +(S.receipt.batch?'<button class="btn sm" onclick="go(\'bench\')">Open bench</button>':'')
+    +(S.receipt.receiving?'<button class="btn sm" onclick="dismissReceipt()">Receive another line</button>':'')
+    +'<button class="btn sec sm" onclick="dismissReceipt()">Dismiss</button></div></div>';
+}
+function undoReceipt(){
+  if(!S.receipt||!S.receipt.undo)return;
+  S.receipt.undo=false;undoLast();
+}
+function mountPanel(){
+  if(!$('veil').classList.contains('open'))panelFocus=document.activeElement;
+  S.panelSeq++; $('veil').classList.add('open'); document.body.classList.add('detail-open');
+  $('sheet').scrollTop=0; $('sheet').focus();
+}
+
+var CUR=null;
+function openItem(id){
+  if(S.busy)return;
+  var i=itemById(id);if(!i)return;
+  CUR={item:i,mode:has('item.take')?'take':'return',route:defaultRoute(i),qty:1,
+    dest:S.job?S.job.destination:S.lastDest,note:S.job?S.job.note:'',history:null};
+  drawItemSheet();mountPanel();
+}
+
+/* The routing rules come from CONFIG.ITEM_CLASSES on the server, shipped in
+   bootstrap. They used to be two hardcoded functions here that named
+   'testable' directly, so a third class would have routed correctly on the
+   server and shown the wrong buttons in the app. */
+function classRule(i){
+  var found=null;
+  (S.boot.itemClasses||[]).forEach(function(c){ if(c.key===i.itemClass) found=c });
+  return found||{returnRoute:'bench', staffMayReturnToShelf:false, label:i.itemClass};
+}
+function defaultRoute(i){
+  var rule=classRule(i);
+  return canRouteToShelf(i) ? rule.returnRoute : 'bench';
+}
+function canRouteToShelf(i){
+  return classRule(i).staffMayReturnToShelf || has('testing.resolve');
+}
+
+function drawItemSheet(){
+  var i=CUR.item;
+  var dests=S.boot.lists.destinations||[];
+  var canTake=has('item.take'), canReturn=has('item.return');
+  var taking=CUR.mode==='take';
+
+  var h='<div class="grip"></div>'
+    +'<h2>'+esc(i.name)+'</h2>'
+    +'<span class="tag">'+esc(i.category)+' · '+esc(i.location||'no location')+' · '+esc(i.id)+'</span>'
+    +'<div class="perf"></div>'
+    +'<div id="itemContext">'+itemContext(i)+'</div><div class="hr"></div>';
+
+  if(!canTake && !canReturn){
+    h+='<div class="note">Your role can view stock but not change it.</div>'
+      +'<div class="btn-row"><button class="btn sec" onclick="closeSheet()">Close</button></div>';
+    $('sheet').innerHTML=h; return;
+  }
+
+  if(canTake && canReturn){
+    h+='<div class="seg" style="margin-bottom:12px">'
+      +'<button aria-pressed="'+taking+'" onclick="setMode(\'take\')">Take from shelf</button>'
+      +'<button aria-pressed="'+(!taking)+'" onclick="setMode(\'return\')">Bring back</button>'
+      +'</div>';
+  }
+
+  /* Returning splits two ways, and which one is right is a property of the
+     item, not a judgement call at the shelf.
+
+     The bench label changes with the class, because the reason differs. For a
+     UPS the bench is where it gets tested. For a ream of paper the bench is
+     where a damaged one goes to be scrapped by someone who is allowed to — which
+     is the route that used to be missing entirely: a kinked cable had nowhere to
+     go but back on the shelf. */
+  if(!taking){
+    var shelfOk=canRouteToShelf(i);
+    var benchLabel='Used or damaged → testing';
+    h+='<div class="seg sub" style="margin-bottom:12px">'
+      +'<button aria-pressed="'+(CUR.route==='shelf')+'"'+(shelfOk?'':' disabled')
+      +' onclick="setRoute(\'shelf\')">Unused / unopened → shelf</button>'
+      +'<button aria-pressed="'+(CUR.route==='bench')+'" onclick="setRoute(\'bench\')">'+benchLabel+'</button>'
+      +'</div>';
+    if(!shelfOk){
+      h+='<div class="note">'+esc(i.name)+' is marked '+esc(i.itemClass)+', so a used one goes to '
+        +'the bench for a tech to check before it counts as stock again.</div>';
+    }
+  }
+
+  var max=taking?Math.max(1,i.shelf):999;
+  h+='<div class="f"><label class="tag">How many'+(taking?' — '+i.shelf+' available':'')+'</label>'
+    +'<div class="step">'
+      +'<button onclick="bump(-1)" aria-label="Fewer">−</button>'
+      +'<input id="qty" class="num" type="number" min="1" max="'+max+'" value="'+CUR.qty+'" oninput="setQty(this.value)">'
+      +'<button onclick="bump(1)" aria-label="More">+</button>'
+    +'</div></div>';
+
+  var mustPick=taking && S.boot.requireDestination;
+  var label=(taking?'Where is it going':'Where did it come from')+(mustPick?'':' (optional)');
+  h+='<div class="f"><label class="tag">'+label+'</label>'
+    +'<div class="picker"><select id="dest" onchange="setDest(this.value)">'
+    +'<option value=""'+(CUR.dest?'':' selected')+'>'+(mustPick?'Choose one…':'Not recorded')+'</option>'
+    +dests.map(function(d){return '<option'+(CUR.dest===d?' selected':'')+'>'+esc(d)+'</option>'}).join('')
+    +'</select></div></div>';
+
+  h+='<div class="f"><label class="tag">Note (optional)</label>'
+    +'<input id="note" type="text" value="'+esc(CUR.note)+'" oninput="CUR.note=this.value" placeholder="'
+    +(taking?'e.g. swapped failing unit at station 4':'e.g. beeping on startup')+'"></div>';
+
+  h+='<div class="btn-row stick">'
+    +'<button class="btn sec" onclick="closeSheet()">Cancel</button>'
+    +'<button class="btn" id="go" onclick="submitItem()"'+(mustPick && !CUR.dest?' disabled':'')+'>'
+    +actionLabel()+'</button></div>';
+  if(taking&&S.job)h+='<p class="context-line">Destination and note are carried from the current job. Edit either for this movement.</p>';
+
+  h+='<div class="hr"></div>';
+
+  /* What this item has been doing. Lazy, because it is a second round trip and
+     most pulls never need it — but "has somebody already taken these?" is a
+     real question at a shelf and the answer was only in the spreadsheet. */
+  h+='<div id="itemHist">'
+    +'<button class="btn sec wide sm" onclick="loadItemHistory()">Recent movements</button></div>';
+
+  if(has('reorder.request')){
+    h+='<button class="btn sec wide sm" style="margin-top:8px" onclick="flagReorder()">Review stock request</button>';
+  }
+  if(has('testing.resolve')){
+    h+='<button class="btn sec wide sm" style="margin-top:8px" onclick="openScrap()">Scrap from shelf</button>';
+  }
+  if(has('item.edit')){
+    h+='<button class="btn sec wide sm" style="margin-top:8px" onclick="openEdit()">Edit this item</button>';
+  }
+
+  $('sheet').innerHTML=h;
+  if(CUR.history) paintItemHistory();
+  syncQty();
+}
+
+function loadItemHistory(){
+  var itemId=CUR.item.id,seq=S.panelSeq,box=$('itemHist');if(box)box.innerHTML='<p>Loading movements…</p>';
+  call('getTransactions',[S.dept,12,itemId]).then(function(rows){
+    if(seq!==S.panelSeq||!CUR||CUR.item.id!==itemId)return;
+    CUR.history=rows;paintItemHistory();
+  }).catch(function(e){if(seq===S.panelSeq&&$('itemHist'))$('itemHist').innerHTML=loadError('Could not load movements.','loadItemHistory()')});
+}
+
+function paintItemHistory(){
+  var box=$('itemHist'); if(!box) return;
+  if(!CUR.history.length){ box.innerHTML='<div class="tag">No movements recorded yet.</div>'; return }
+  box.innerHTML='<div class="section-heading"><span>Recent movements</span></div>'
+    +CUR.history.map(function(t){
+      return '<div class="row" style="padding:8px 11px">'
+        +'<div class="hd"><div style="min-width:0">'
+        +'<div class="nm" style="font-size:.85rem">'+esc(t.action)+' '+t.quantity
+        +(t.destination?' → '+esc(t.destination):'')+'</div>'
+        +'<div class="tag sub">'+esc(t.timestamp)+' · '+esc(t.userName)+'</div></div>'
+        +(t.voided?'<span class="pill void">void</span>':'')
+        +'</div></div>';
+    }).join('');
+}
+
+function actionLabel(){
+  if(CUR.mode==='take') return 'Take '+CUR.qty;
+  return CUR.route==='shelf' ? 'Put '+CUR.qty+' back' : 'Send '+CUR.qty+' to bench';
+}
+
+/* Mode and route changes keep the quantity and the note. Losing a typed note
+   because someone tapped the wrong tab is the kind of small insult that stops
+   people writing notes at all. */
+function setMode(m){CUR.mode=m;CUR.dest=m==='take'?(S.job?S.job.destination:S.lastDest):'';if(m==='return')CUR.route=defaultRoute(CUR.item);clampQty();drawItemSheet()}
+function setRoute(r){ if(r==='shelf'&&!canRouteToShelf(CUR.item)) return; CUR.route=r; drawItemSheet() }
+function setDest(d){CUR.dest=d;syncQty()}
+function setQty(v){ CUR.qty=Math.max(1,parseInt(v,10)||1); clampQty(); syncQty() }
+function bump(d){ CUR.qty=Math.max(1,CUR.qty+d); clampQty(); syncQty() }
+
+/* Cap at what is actually on the shelf. Finding out you asked for more than
+   exists should not need a round trip to the server. */
+function clampQty(){
+  if(CUR.mode==='take') CUR.qty=Math.min(CUR.qty, Math.max(1,CUR.item.shelf));
+}
+function syncQty(){
+  var el=$('qty'); if(el)el.value=CUR.qty;
+  var g=$('go');if(!g)return;
+  var unavailable=CUR.mode==='take'&&CUR.item.shelf<1;
+  g.textContent=unavailable?'None available':actionLabel();
+  g.disabled=S.busy||unavailable||!S.extras||(CUR.mode==='take'&&S.boot.requireDestination&&!CUR.dest);
+  if(!S.extras)g.textContent=S.extrasError?'Details unavailable':'Loading details…';
+}
+
+function submitItem(){
+  if(S.busy||!S.extras)return;
+  if(CUR.mode==='take'&&(CUR.item.shelf<1||(S.boot.requireDestination&&!CUR.dest)))return;
+  S.busy=true;clearSheetError();$('go').disabled=true;$('go').textContent='Saving…';
+  var draft={item:CUR.item,mode:CUR.mode,qty:CUR.qty,dest:CUR.dest,note:CUR.note,route:CUR.route};
+  var fn=draft.mode==='take'?'takeItem':(draft.route==='shelf'?'putBackOnShelf':'returnForTesting');
+  var payload={itemId:draft.item.id,quantity:draft.qty,destination:draft.dest,cameFrom:draft.dest,notes:draft.note};
+  call(fn,[payload]).then(function(res){
+    S.busy=false;var item=res.item||res;noteRecent(item.id);
+    if(draft.mode==='take'&&draft.dest)S.lastDest=draft.dest;
+    if(draft.mode==='take'&&S.job)S.job={destination:draft.dest,note:draft.note};
+    S.receipt={message:(draft.mode==='take'?'Took '+draft.qty+' × '+item.name+(draft.dest?' for '+draft.dest:'')
+      :(draft.route==='shelf'?'Returned '+draft.qty+' × '+item.name+' to shelf':'Sent '+draft.qty+' × '+item.name+' for testing'))
+      +' · '+item.shelf+' available',undo:has('txn.undoOwn')||has('txn.void'),
+      job:draft.mode==='take'?{destination:draft.dest,note:draft.note}:null,
+      batch:res.batchId&&has('testing.resolve')?res.batchId:null};
+    closeSheet();patchItem(item);reload();
+  }).catch(function(e){S.busy=false;syncQty();fail(e)});
+}
+
+/* Undo takes no argument on purpose: the server finds this person's own most
+   recent reversible movement and checks the time limit itself, so the rule
+   cannot be bent from here. */
+function undoLast(){
+  call('undoLastAction',['']).then(function(r){
+    S.receipt={message:'Undone: '+r.quantity+' '+r.action.toLowerCase()+' reversed · '+r.item.shelf+' available'};
+    toast('Movement reversed');
+    if(r.item) patchItem(r.item);
+    return reload();
+  }).catch(function(e){ toast(e.message,{bad:true}) });
+}
+
+/* Scrap straight off the shelf — a swollen battery, a crushed box. Rare, and a
+   tech's call, so it sits below the everyday actions rather than in them. */
+function openScrap(){
+  var reasons=S.boot.lists.disposalReasons||[];
+  var i=CUR.item;
+  $('sheet').innerHTML='<div class="grip"></div>'
+    +'<h2>Scrap from shelf</h2><span class="tag">'+esc(i.name)+' · '+i.shelf+' on shelf</span>'
+    +'<div class="perf"></div>'
+    +'<div class="note">This records a disposal, so it shows up in what you are throwing away and '
+      +'why. Use a stock correction instead if the count is simply wrong.</div>'
+    +'<div class="f"><label class="tag">How many</label>'
+      +'<input id="sQty" class="num" type="number" min="1" max="'+Math.max(1,i.shelf)+'" value="1"></div>'
+    +'<div class="f"><label class="tag">Why</label><select id="sReason">'
+      +reasons.map(function(r){return '<option>'+esc(r)+'</option>'}).join('')+'</select></div>'
+    +'<div class="f"><label class="tag">Note (optional)</label>'
+      +'<input id="sNote" placeholder="e.g. found swollen on the shelf"></div>'
+    +'<div class="btn-row stick"><button class="btn sec" onclick="drawItemSheet()">Back</button>'
+    +'<button class="btn" id="sGo" onclick="submitScrap()">Record disposal</button></div>';
+}
+
+function submitScrap(){
+  if(S.busy)return; S.busy=true;
+  clearSheetError();
+  $('sGo').disabled=true; $('sGo').textContent='Saving…';
+  call('disposeFromShelf',[{itemId:CUR.item.id, quantity:$('sQty').value,
+    disposalReason:$('sReason').value, notes:$('sNote').value}])
+    .then(function(item){
+      S.busy=false; toast('Disposal recorded'); closeSheet(); patchItem(item); noteRecent(item.id); reload();
+    }).catch(function(e){
+      S.busy=false; fail(e);
+      $('sGo').disabled=false; $('sGo').textContent='Record disposal';
+    });
+}
+
+function flagReorder(){
+  if(!S.extras){fail({message:'Order status is not loaded. Retry the supporting information first.'});return}
+  var existing=itemOrders(CUR.item.id)[0];
+  if(existing){showItemOrder(CUR.item.id,existing.id);return}
+  var item=CUR.item;
+  $('sheet').innerHTML='<div class="grip"></div><h2>Request stock</h2><p>'+esc(item.name)+'</p><div id="requestBody">Loading suggestion…</div>';
+  mountPanel();var seq=S.panelSeq;
+  call('getReorderSuggestion',[item.id]).then(function(r){
+    if(seq!==S.panelSeq)return;
+    if(r.existingId){$('requestBody').innerHTML='<p>A request or order was just opened for this item.</p><button class="btn" onclick="reload().then(function(){showItemOrder(\''+item.id+'\',\''+r.existingId+'\')})">View existing request</button>';return}
+    $('requestBody').innerHTML='<div class="f"><label for="requestQty">Quantity requested</label><input id="requestQty" type="number" min="1" step="1" value="'+r.quantity+'"></div>'
+      +'<p class="note">'+esc(r.explanation)+'</p><div class="f"><label for="requestNote">Note (optional)</label><input id="requestNote"></div>'
+      +'<div class="btn-row stick"><button class="btn sec" onclick="drawItemSheet()">Back</button><button class="btn" id="requestGo" onclick="submitRequest(\''+item.id+'\')">Request stock</button></div>';
+  }).catch(function(e){if(seq===S.panelSeq){$('requestBody').innerHTML='<button class="btn sec" onclick="flagReorder()">Retry</button>';fail(e)}});
+}
+function submitRequest(id){
+  var qty=Number($('requestQty').value);if(!Number.isInteger(qty)||qty<1){fail({message:'Enter a whole quantity greater than zero.'});return}
+  if(S.busy)return;S.busy=true;$('requestGo').disabled=true;clearSheetError();
+  call('requestReorder',[{itemId:id,quantity:qty,notes:$('requestNote').value}]).then(function(r){
+    S.busy=false;S.receipt={message:r.created?'Requested '+r.qty+' × '+itemById(id).name:r.message};
+    closeSheet();S.orderFocus=r.id;S.orderFilter='open';go('orders');reload();
+  }).catch(function(e){S.busy=false;$('requestGo').disabled=false;fail(e)});
+}
+
+/* ============================================================
+   Bench
+   ============================================================ */
+function renderBench(){
+  if(S.extrasError){$('view').innerHTML=loadError('Could not load bench work.','loadExtras()');return}
+  if(!S.extras){$('view').innerHTML='<div class="skel"></div><p>Loading bench work…</p>';return}
+  var q=S.boot.testing, bench=q.filter(function(b){return b.status!=='Out for warranty'}), vendor=q.filter(function(b){return b.status==='Out for warranty'});
+  function group(title,rows,empty){return '<section><div class="section-heading"><h2>'+title+'</h2><span>'+rows.length+' batches · '+rows.reduce(function(n,b){return n+b.pending},0)+' units</span></div>'
+    +(rows.length?'<div class="work-list">'+rows.map(benchRow).join('')+'</div>':'<p class="empty compact">'+empty+'</p>')+'</section>'}
+  $('view').innerHTML='<div class="page-title"><h1>Bench</h1><span>Record results as you go</span></div>'
+    +(S.syncError?loadError(S.syncError,'reload()'):'')+receiptHtml()
+    +group('Awaiting testing',bench,'No batches awaiting testing.')
+    +group('With vendor',vendor,'No batches with a vendor.');
+}
+
+function benchRow(b){
+  var vendor=b.status==='Out for warranty';
+  return '<article class="row" id="batch-'+esc(b.batchId)+'"><div class="hd"><div><div class="nm">'+b.pending+' × '+esc(b.itemName)+'</div>'
+    +'<div class="row-meta">From '+esc(b.cameFrom||'origin not recorded')+' · returned by '+esc(b.returnedBy)+'</div></div>'
+    +'<span class="pill '+((vendor?b.chaseVendor:b.stale)?'late':'pending')+'">'+(vendor?b.awayDays+' days with vendor':b.ageDays===0?'Today':b.ageDays+' days waiting')+'</span></div>'
+    +(vendor?'<p class="row-meta">'+esc(b.vendorRef)+' · sent '+esc(b.sentToVendor)+(b.chaseVendor?' · Follow up with vendor':'')+'</p>':'')
+    +(b.notes?'<p class="row-note">'+esc(b.notes)+'</p>':'')
+    +(b.resolutionNote?'<details class="evidence"><summary>Earlier results and follow-up</summary><p>'+esc(b.resolutionNote)+'</p></details>':'')
+    +'<div class="acts">'+(vendor?'<button class="btn" onclick="backFromVendor(\''+b.batchId+'\')">Returned from vendor</button>'
+      :'<button class="btn" onclick="openResolve(\''+b.batchId+'\')">Record results</button><button class="btn sec" onclick="openVendor(\''+b.batchId+'\')">Send to vendor</button>')
+    +'<button class="btn sec" onclick="openItem(\''+b.itemId+'\')">View item</button></div></article>';
+}
+
+/* Warranty returns. Without this a unit sent off for an RMA sits on the bench
+   as pending for as long as the vendor takes, and the daily backlog nudge
+   chases a tech every morning about something already handled. */
+function openVendor(batchId){
+  var b=null; S.boot.testing.forEach(function(x){if(x.batchId===batchId)b=x});
+  if(!b)return;
+  $('sheet').innerHTML='<div class="grip"></div>'
+    +'<h2>Send to vendor</h2><span class="tag">'+b.pending+' × '+esc(b.itemName)+'</span>'
+    +'<div class="perf"></div>'
+    +'<div class="note">These stay off the shelf and stop appearing in the daily bench backlog. '
+      +'Resolve them normally when they come back.</div>'
+    +'<div class="f"><label class="tag">RMA or case reference</label>'
+      +'<input id="vRef" placeholder="e.g. APC RMA 88213"></div>'
+    +'<div class="f"><label class="tag">Note (optional)</label>'
+      +'<input id="vNote" placeholder="e.g. all three failed the same way"></div>'
+    +'<div class="btn-row stick"><button class="btn sec" onclick="closeSheet()">Cancel</button>'
+    +'<button class="btn" id="vGo" onclick="submitVendor(\''+batchId+'\')">Send to vendor</button></div>';
+  mountPanel();
+}
+
+function submitVendor(batchId){
+  if(S.busy)return; S.busy=true;
+  clearSheetError();
+  $('vGo').disabled=true; $('vGo').textContent='Saving…';
+  call('sendBatchToVendor',[{batchId:batchId, vendorRef:$('vRef').value, notes:$('vNote').value}])
+    .then(function(){S.busy=false;toast('Sent to vendor');closeSheet();return reload()})
+    .catch(function(e){S.busy=false;fail(e);$('vGo').disabled=false;$('vGo').textContent='Send to vendor'});
+}
+
+function backFromVendor(batchId){
+  if(S.busy)return;S.busy=true;
+  call('returnBatchFromVendor',[batchId,'']).then(function(){S.busy=false;S.receipt={message:'Returned from vendor; awaiting testing before becoming available.'};reload()})
+    .catch(function(e){S.busy=false;fail(e)});
+}
+
+var RES=null;
+function openResolve(batchId){
+  if(S.busy)return;
+  var b=S.boot.testing.find(function(x){return x.batchId===batchId});if(!b)return;
+  RES={batch:b,shelf:0,issue:0,scrap:0,dest:'',reason:'',notes:'',reorder:false};
+  drawResolve();mountPanel();
+}
+
+/**
+ * Three destinations, not two.
+ *
+ * A tested-good unit often does not go back on the shelf — it goes straight out
+ * to whoever is waiting for it. Recording that as "back to shelf" then taking it
+ * again invents a shelf visit that never happened and logs a pull that inflates
+ * the burn rate for exactly the items that cycle through here.
+ */
+function drawResolve(){
+  var b=RES.batch, reasons=S.boot.lists.disposalReasons||[],dests=S.boot.lists.destinations||[],existing=itemOrders(b.itemId)[0];
+  function count(id,label,value){return '<div class="outcome"><label for="'+id+'">'+label+'</label><input class="num" id="'+id+'" type="number" min="0" step="1" max="'+b.pending+'" value="'+value+'" oninput="syncResolve()"></div>'}
+  $('sheet').innerHTML='<div class="grip"></div><h2>'+esc(b.itemName)+'</h2><p class="row-meta">'+b.pending+' awaiting a decision · '+esc(b.cameFrom||'origin not recorded')+'</p>'
+    +(b.resolutionNote?'<details class="evidence"><summary>Earlier results</summary><p>'+esc(b.resolutionNote)+'</p></details>':'')
+    +'<div class="hr"></div><button class="btn sec sm" onclick="allPassed()">All passed → shelf</button><div class="outcomes">'
+    +count('rShelf','Return to shelf',RES.shelf)+count('rIssue','Issue directly',RES.issue)
+    +'<div class="f" id="rDest"><label for="rDestSel">Destination'+(S.boot.requireDestination?'':' (optional)')+'</label><select id="rDestSel" onchange="syncResolve()"><option value="">'+(S.boot.requireDestination?'Choose destination…':'Not recorded')+'</option>'
+    +dests.map(function(d){return '<option'+(d===RES.dest?' selected':'')+'>'+esc(d)+'</option>'}).join('')+'</select></div>'
+    +count('rScrap','Dispose',RES.scrap)
+    +'<div class="f" id="rReason"><label for="reason">Disposal reason'+(S.boot.disposalRequiresReason?'':' (optional)')+'</label><select id="reason" onchange="syncResolve()"><option value="">Choose reason…</option>'
+    +reasons.map(function(r){return '<option'+(r===RES.reason?' selected':'')+'>'+esc(r)+'</option>'}).join('')+'</select></div></div>'
+    +'<p class="remaining" id="rLeft" role="status"></p>'
+    +'<div class="f"><label for="rNote">Note (optional)</label><input id="rNote" value="'+esc(RES.notes)+'" oninput="RES.notes=this.value" placeholder="What did you find?"></div>'
+    +'<div id="rReorder">'+(existing?'<p class="note">Replacements: '+esc(orderLabel(existing))+' <button class="context-link" onclick="showBatchOrder(\''+existing.id+'\')">View request or order ›</button></p>'
+      :has('reorder.request')?'<div class="check"><input id="rReorderBox" type="checkbox" onchange="RES.reorder=this.checked"'+(RES.reorder?' checked':'')+'><label for="rReorderBox">Request replacements for disposed units</label></div>':'')+'</div>'
+    +'<div class="btn-row stick"><button class="btn sec" onclick="closeSheet()">Cancel</button><button class="btn" id="rGo" onclick="submitResolve()">Save results</button></div>';
+  syncResolve();
+}
+function allPassed(){ $('rShelf').value=RES.batch.pending;$('rIssue').value=0;$('rScrap').value=0;syncResolve() }
+function showBatchOrder(id){S.returnBatch=RES;S.returnItem='';S.orderFocus=id;S.orderFilter='open';S.orderQ='';closeSheet();go('orders')}
+function backToBatch(){RES=S.returnBatch;S.returnBatch=null;go('bench');drawResolve();mountPanel()}
+
+function syncResolve(){
+  RES.shelf=Number($('rShelf').value);RES.issue=Number($('rIssue').value);RES.scrap=Number($('rScrap').value);
+  RES.dest=$('rDestSel').value;RES.reason=$('reason').value;
+  var values=[RES.shelf,RES.issue,RES.scrap],valid=values.every(function(n){return Number.isInteger(n)&&n>=0});
+  var total=RES.shelf+RES.issue+RES.scrap,left=RES.batch.pending-total;
+  $('rDest').hidden=RES.issue<=0;$('rReason').hidden=RES.scrap<=0;$('rReorder').hidden=RES.scrap<=0;
+  $('rLeft').textContent=!valid?'Enter whole quantities, zero or more.':left<0?'Too many results: '+total+' entered for '+RES.batch.pending+'.':left+' still awaiting a decision';
+  $('rGo').disabled=S.busy||!valid||left<0||total===0||(RES.issue>0&&S.boot.requireDestination&&!RES.dest)||(RES.scrap>0&&S.boot.disposalRequiresReason&&!RES.reason);
+  $('rGo').textContent='Save '+(valid?total:0)+' results'+(left>0?' · '+left+' remain':' · close batch');
+}
+
+function submitResolve(){
+  syncResolve();if(S.busy||$('rGo').disabled)return;S.busy=true;clearSheetError();$('rGo').disabled=true;$('rGo').textContent='Saving…';
+  var draft=Object.assign({},RES);
+  call('resolveTestingBatch',[{batchId:draft.batch.batchId,toShelf:draft.shelf,toIssue:draft.issue,toDispose:draft.scrap,
+    destination:draft.dest,disposalReason:draft.reason,notes:draft.notes,reorderDisposed:draft.scrap>0&&draft.reorder}]).then(function(r){
+    S.busy=false;
+    var parts=[];if(draft.shelf)parts.push(draft.shelf+' returned to shelf');if(draft.issue)parts.push(draft.issue+' issued to '+(draft.dest||'unrecorded destination'));if(draft.scrap)parts.push(draft.scrap+' disposed');
+    S.receipt={message:parts.join(' · ')+' · '+r.remaining+' still awaiting a decision'+(r.reorderRaised?' · replacements requested':'')};
+    closeSheet();patchItem(r.item);reload();
+  }).catch(function(e){S.busy=false;syncResolve();fail(e)});
+}
+
+/* ============================================================
+   Orders
+   ============================================================ */
+function renderOrders(){
+  if(S.extrasError){$('view').innerHTML=loadError('Could not load orders.','loadExtras()');return}
+  if(!S.extras){$('view').innerHTML='<div class="skel"></div><p>Loading orders…</p>';return}
+  var rows=S.boot.reorders, needed=rows.filter(function(o){return o.status==='Needed'}).length,
+    late=rows.filter(function(o){return o.overdueDays>0}).length;
+  $('view').innerHTML='<div class="page-title"><h1>Orders</h1><span>'+needed+' to order · '+late+' deliveries late</span></div>'
+    +(S.returnBatch?'<button class="context-link" onclick="backToBatch()">‹ Back to batch results</button>':S.returnItem?'<button class="context-link" onclick="backToItem()">‹ Back to '+esc((itemById(S.returnItem)||{}).name||'item')+'</button>':'')
+    +(S.syncError?loadError(S.syncError,'reload()'):'')+receiptHtml()
+    +'<div class="filters"><div class="search"><input type="search" id="orderQ" aria-label="Search orders" placeholder="Item, vendor or order reference" value="'+esc(S.orderQ)+'" oninput="S.orderQ=this.value;paintOrders()"></div>'
+    +'<div class="picker"><select aria-label="Order status" onchange="S.orderFilter=this.value;paintOrders()">'
+    +[['open','All open'],['Pending approval','Awaiting approval'],['Needed','To order'],['delivery','Waiting for delivery'],['received','Recently received']].map(function(o){return '<option value="'+o[0]+'"'+(S.orderFilter===o[0]?' selected':'')+'>'+o[1]+'</option>'}).join('')+'</select></div></div><div id="ordersList"></div>';
+  paintOrders();
+}
+function paintOrders(){
+  var box=$('ordersList');if(!box)return;
+  if(S.orderFilter==='received'&&!S.closedOrders){
+    if(S.closedState==='error'){box.innerHTML=loadError('Could not load received orders.','S.closedState=\'idle\';paintOrders()');return}
+    box.innerHTML='<p>Loading received orders…</p>';
+    if(S.closedState==='loading')return;
+    S.closedState='loading';var epoch=S.epoch,dataSeq=S.reloadSeq;
+    call('getReorders',[S.dept,true]).then(function(rows){
+      if(epoch!==S.epoch||dataSeq!==S.reloadSeq)return;
+      S.closedOrders=rows.filter(function(o){return o.status==='Received'}).sort(function(a,b){return (b.receivedDate||b.created).localeCompare(a.receivedDate||a.created)});
+      S.closedState='ready';if(S.tab==='orders')paintOrders();
+    }).catch(function(){if(epoch===S.epoch&&dataSeq===S.reloadSeq){S.closedState='error';if(S.tab==='orders')paintOrders()}});return;
+  }
+  var rows=S.orderFilter==='received'?S.closedOrders:S.boot.reorders,q=S.orderQ.toLowerCase().trim();
+  rows=rows.filter(function(o){
+    if(q&&(o.itemName+' '+o.vendor+' '+o.poRef).toLowerCase().indexOf(q)<0)return false;
+    return ['open','received'].indexOf(S.orderFilter)>=0||(S.orderFilter==='delivery'?(o.status==='Ordered'||o.status==='Partially Received'):o.status===S.orderFilter);
+  });
+  var h='';
+  if(S.orderFilter==='open'&&!q){
+    var byItem={};(S.boot.alerts||[]).forEach(function(a){if(!itemOrders(a.itemId).length)byItem[a.itemId]=a});
+    var alerts=Object.keys(byItem).map(function(k){return byItem[k]});
+    if(alerts.length)h+='<div class="section-heading"><h2>Stock to review</h2></div>'+alerts.map(function(a){return '<div class="row"><div class="nm">'+esc(a.message)+'</div><div class="acts"><button class="btn" onclick="openItem(\''+a.itemId+'\')">Review item</button><button class="btn sec" onclick="ackAlert(\''+a.id+'\')">Acknowledge alert</button></div><p class="row-meta">Acknowledging this notice does not close a request or change stock.</p></div>'}).join('');
+  }
+  var groups=S.orderFilter==='received'?[['Received',rows]]:[
+    ['Awaiting approval',rows.filter(function(o){return o.status==='Pending approval'})],
+    ['To order',rows.filter(function(o){return o.status==='Needed'})],
+    ['Waiting for delivery',rows.filter(function(o){return o.status==='Ordered'||o.status==='Partially Received'}).sort(function(a,b){return b.overdueDays-a.overdueDays})]
+  ];
+  groups.forEach(function(g){if(g[1].length)h+='<section><div class="section-heading"><h2>'+g[0]+'</h2><span>'+g[1].length+'</span></div><div class="work-list">'+g[1].map(orderRow).join('')+'</div></section>'});
+  box.innerHTML=h||'<div class="empty"><h2>'+ (q?'No matching orders':S.orderFilter==='received'?'No received orders yet':'No orders in this view')+'</h2><p>'+ (q?'Try an item name, vendor or shorter reference.':'Change the filter to see other stages.')+'</p></div>';
+  if(S.orderFocus){var el=document.querySelector('[data-order="'+CSS.escape(S.orderFocus)+'"]');if(el){el.classList.add('selected-row');el.scrollIntoView({block:'nearest'});S.orderFocus=''}}
+}
+
+function ackAlert(id){
+  call('acknowledgeAlert',[id]).then(function(){
+    toast('Marked as seen');
+    S.boot.alerts=(S.boot.alerts||[]).filter(function(a){return a.id!==id});
+    render();
+  }).catch(fail);
+}
+
+function orderRow(o){
+  var waiting=o.status==='Ordered'||o.status==='Partially Received',item=itemById(o.itemId);
+  var label={'Needed':'To order','Pending approval':'Awaiting approval','Partially Received':'Partially received','Received':'Received','Ordered':'Ordered'}[o.status]||o.status;
+  var h='<article class="row" data-order="'+esc(o.id)+'"><div class="hd"><div><div class="nm">'+esc(o.itemName)+'</div>'
+    +'<p class="row-meta">'+(waiting||o.status==='Received'?esc(o.vendor)+' · '+esc(o.poRef):o.requested+' requested · '+esc(o.requestedBy))+'</p></div><span class="pill pending">'+label+'</span></div>';
+  if(item)h+='<div class="order-stock" data-stock-context="'+esc(o.itemId)+'">'+orderStockLine(item)+'</div>';
+  if(waiting||o.status==='Received')h+='<p class="receipt-counts"><b>'+o.ordered+'</b> ordered · <b>'+o.received+'</b> received · <b>'+o.outstanding+'</b> still due</p>'
+    +'<p class="row-meta">'+(o.status==='Received'?'Completed '+esc(o.receivedDate||''):o.overdueDays?'<strong>'+o.overdueDays+' days late</strong> · expected '+esc(o.expectedDate):o.expectedDate?'Expected '+esc(o.expectedDate):'Expected date not recorded')+'</p>';
+  if(o.notes)h+='<details class="evidence"><summary>Order notes</summary><p>'+esc(o.notes)+'</p></details>';
+  h+='<div class="acts">';
+  if(o.status==='Pending approval'&&has('reorder.approve'))h+='<button class="btn" onclick="decide(\''+o.id+'\',true)">Approve</button><button class="btn sec" onclick="decide(\''+o.id+'\',false)">Decline</button>';
+  if(o.status==='Needed'&&has('reorder.order'))h+='<button class="btn" onclick="openOrdered(\''+o.id+'\')">Mark as ordered</button>';
+  if(waiting&&has('reorder.receive'))h+='<button class="btn" onclick="openReceive(\''+o.id+'\')">Receive delivery</button>';
+  if(item)h+='<button class="btn sec" onclick="openItem(\''+o.itemId+'\')">View item</button>';
+  if(has('reorder.request')&&o.status!=='Received')h+='<button class="btn sec" onclick="openCancel(\''+o.id+'\')">Cancel '+(waiting?'remaining order':'request')+'</button>';
+  return h+'</div></article>';
+}
+
+/* Approve is one tap; declining and cancelling both need a reason, and a reason
+   needs somewhere to type it. window.prompt() was the only browser dialog left in
+   an app that is otherwise all custom sheets — and on a phone it is the one that
+   looks broken. */
+function openCancel(id){
+  var o=findOrder(id); if(!o)return;
+  reasonSheet({
+    title:o.status==='Ordered'||o.status==='Partially Received'?'Cancel remaining order':'Cancel this request', subtitle:o.itemName+' · '+o.status,
+    note:o.received?'The '+o.received+' already received remain on the record and in stock. Only the outstanding remainder is cancelled.':'',
+    label:'Why is it being cancelled', placeholder:'e.g. found four on the AV shelf',
+    confirm:'Cancel request',
+    go:function(why){
+      return call('cancelReorder',[id,why]).then(function(){
+        toast('Request cancelled'); closeSheet(); return reload();
+      });
+    }
+  });
+}
+
+function decide(id, approve){
+  if(approve){
+    call('approveReorder',[id,true,''])
+      .then(function(){toast('Approved for ordering');return reload()}).catch(fail);
+    return;
+  }
+  var o=findOrder(id);
+  reasonSheet({
+    title:'Decline this request', subtitle:o?o.itemName:'',
+    label:'Why is it being declined', placeholder:'e.g. use the ones in the AV cage first',
+    confirm:'Decline',
+    go:function(why){
+      return call('approveReorder',[id,false,why]).then(function(){
+        toast('Request declined'); closeSheet(); return reload();
+      });
+    }
+  });
+}
+
+/**
+ * One sheet for "do this, and say why".
+ *
+ * Declining, cancelling and voiding are the same shape: a short reason, a
+ * confirm, and an error that has to be readable. Three copies of that was three
+ * places to get the error handling subtly different.
+ */
+function reasonSheet(o){
+  $('sheet').innerHTML='<div class="grip"></div>'
+    +'<h2>'+esc(o.title)+'</h2>'
+    +(o.subtitle?'<span class="tag">'+esc(o.subtitle)+'</span>':'')
+    +'<div class="perf"></div>'
+    +(o.note?'<div class="note">'+esc(o.note)+'</div>':'')
+    +'<div class="f"><label class="tag">'+esc(o.label)+'</label>'
+    +'<input id="whyBox" type="text" placeholder="'+esc(o.placeholder||'')+'" oninput="syncReason()"></div>'
+    +'<div class="btn-row stick"><button class="btn sec" onclick="closeSheet()">Back</button>'
+    +'<button class="btn" id="whyGo" disabled>'+esc(o.confirm)+'</button></div>';
+
+  $('whyGo').onclick=function(){
+    var why=$('whyBox').value.trim();
+    if(!why) return;
+    if(S.busy)return; S.busy=true;
+    clearSheetError();
+    $('whyGo').disabled=true; $('whyGo').textContent='Saving…';
+    o.go(why).then(function(){ S.busy=false; closeSheet(); render(); }).catch(function(e){
+      S.busy=false; fail(e);
+      $('whyGo').disabled=false; $('whyGo').textContent=o.confirm;
+    });
+  };
+  mountPanel();
+  $('whyBox').focus();
+}
+
+function syncReason(){
+  var b=$('whyGo'); if(b) b.disabled=!$('whyBox').value.trim();
+}
+
+var ORD=null;
+function findOrder(id){return (S.boot.reorders||[]).concat(S.closedOrders||[]).find(function(o){return o.id===id})}
+
+function openOrdered(id){
+  ORD=findOrder(id); if(!ORD)return;
+  var vendors=S.boot.lists.vendors||[];
+  $('sheet').innerHTML='<div class="grip"></div>'
+    +'<h2>Mark as ordered</h2><p>'+esc(ORD.itemName)+'</p>'
+    +'<div class="order-stock">'+(itemById(ORD.itemId)?orderStockLine(itemById(ORD.itemId)):'')+'</div>'
+    +'<details class="evidence"><summary onclick="explainQuantity()">Review suggested quantity</summary><p id="qtyAdvice">Loading…</p></details>'
+    +'<div class="perf"></div>'
+    +'<div class="f"><label class="tag">Vendor</label>'
+      +'<input id="oVendor" list="vendorList" value="'+esc(ORD.vendor||'')+'" placeholder="Who it was ordered from">'
+      +'<datalist id="vendorList">'+vendors.map(function(v){return '<option value="'+esc(v)+'">'}).join('')+'</datalist></div>'
+    +'<div class="f"><label class="tag">PO or payment reference</label>'
+      +'<input id="oRef" placeholder="e.g. PO 44821, or P-card – J. Rivera – Jul"></div>'
+    +'<div class="f2">'
+      +'<div class="f"><label class="tag">Quantity actually ordered</label>'
+        +'<input id="oQty" class="num" type="number" min="1" value="'+ORD.requested+'"></div>'
+      +'<div class="f"><label class="tag">Unit cost</label>'
+        +'<input id="oCost" class="num" type="number" step="0.01" placeholder="0.00" value="'+esc(ORD.unitCost||'')+'"></div>'
+    +'</div>'
+    +'<div class="f"><label class="tag">Expected date</label><input id="oDate" type="date"></div>'
+    +'<div class="note">Use a reference, never a full card number. This is a spreadsheet, not a payment system.</div>'
+    +'<div class="btn-row stick"><button class="btn sec" onclick="closeSheet()">Cancel</button>'
+    +'<button class="btn" id="oGo" onclick="submitOrdered()">Save order</button></div>';
+  mountPanel();
+}
+
+
+function explainQuantity(){
+  var id=ORD.itemId,seq=S.panelSeq;
+  call('getReorderSuggestion',[id]).then(function(r){if(seq===S.panelSeq&&$('qtyAdvice'))$('qtyAdvice').textContent='Current suggestion: '+r.quantity+'. '+r.explanation+' Record the quantity actually purchased below.'})
+    .catch(function(){if(seq===S.panelSeq&&$('qtyAdvice'))$('qtyAdvice').textContent='Suggestion unavailable. Record the quantity actually purchased.'});
+}
+function submitOrdered(){
+  if(S.busy)return; S.busy=true;
+  clearSheetError();
+  $('oGo').disabled=true; $('oGo').textContent='Saving…';
+  call('markOrdered',[{
+    reorderId:ORD.id, vendor:$('oVendor').value, poRef:$('oRef').value,
+    qtyOrdered:$('oQty').value, unitCost:$('oCost').value, expectedDate:$('oDate').value
+  }]).then(function(){
+    S.busy=false;S.receipt={message:'Order recorded for '+ORD.itemName+'. Waiting for delivery.'};closeSheet();return reload();
+  }).catch(function(e){
+    S.busy=false; fail(e);
+    $('oGo').disabled=false; $('oGo').textContent='Save order';
+  });
+}
+
+function openReceive(id){
+  if(S.busy)return;ORD=findOrder(id);if(!ORD)return;
+  $('sheet').innerHTML='<div class="grip"></div><h2>Receive delivery</h2><p>'+esc(ORD.itemName)+'</p><p class="row-meta">'+esc(ORD.vendor)+' · '+esc(ORD.poRef)+'</p>'
+    +'<div class="receipt-summary"><div><b>'+ORD.ordered+'</b><span>Ordered</span></div><div><b>'+ORD.received+'</b><span>Received so far</span></div><div><b>'+ORD.outstanding+'</b><span>Still due</span></div></div>'
+    +'<div class="f"><label for="cQty">Quantity to add to shelf today</label><div class="receive-entry"><input id="cQty" type="number" min="1" step="1" max="'+ORD.outstanding+'" inputmode="numeric" oninput="syncReceive()"><button class="btn sec" onclick="$(\'cQty\').value=ORD.outstanding;syncReceive()">All '+ORD.outstanding+'</button></div></div>'
+    +'<p class="context-line">Only enter usable stock going onto the shelf. Short shipments stay open.</p>'
+    +'<div class="f"><label for="cNote">Note (optional)</label><input id="cNote" placeholder="Delivery details"></div>'
+    +'<p id="receivePreview" class="remaining" role="status">Enter the quantity that arrived.</p>'
+    +'<div class="btn-row stick"><button class="btn sec" onclick="closeSheet()">Cancel</button><button class="btn" id="cGo" onclick="submitReceive()" disabled>Receive quantity</button></div>';
+  mountPanel();
+}
+function syncReceive(){
+  var qty=Number($('cQty').value),valid=Number.isInteger(qty)&&qty>0&&qty<=ORD.outstanding;
+  $('cGo').disabled=S.busy||!valid;$('cGo').textContent=valid?'Receive '+qty:'Receive quantity';
+  $('receivePreview').textContent=valid?(ORD.received+qty)+' of '+ORD.ordered+' received · '+(ORD.outstanding-qty)+' still due'+(qty===ORD.outstanding?' · order complete':'')
+    :!$('cQty').value?'Enter the quantity that arrived.':'Enter a whole quantity from 1 to '+ORD.outstanding+'.';
+}
+
+function submitReceive(){
+  syncReceive();if(S.busy||$('cGo').disabled)return;S.busy=true;clearSheetError();$('cGo').disabled=true;$('cGo').textContent='Saving…';
+  var qty=Number($('cQty').value),order=ORD;
+  call('receiveOrder',[{reorderId:order.id,qtyReceived:qty,notes:$('cNote').value}]).then(function(r){
+    S.busy=false;S.receipt={message:'Received '+qty+' × '+order.itemName+' · '+r.received+' of '+r.ordered+' received · '+(r.ordered-r.received)+' still due'+(r.status==='Received'?' · order complete':''),receiving:true};
+    closeSheet();patchItem(r.item);reload();
+  }).catch(function(e){S.busy=false;syncReceive();fail(e)});
+}
+
+/* ============================================================
+   Usage
+   ============================================================ */
+function renderUsage(){
+  var epoch=S.epoch,view=++S.viewSeq;
+  $('view').innerHTML='<div class="skel"></div><div class="skel"></div>';
+  call('getUsageStats',[S.dept]).then(function(u){
+    if(epoch!==S.epoch||view!==S.viewSeq||S.tab!=='usage')return;
+    var h='<div class="note">Rates come from the last '+u.windowDays+' days, measured over the '
+      +'time each item was actually in stock — not the whole period. An item that ran out '
+      +'was not being used slowly, it was unavailable. A second '+u.recentDays+'-day window '
+      +'runs alongside, only to say whether things are picking up or slowing down.</div>';
+
+    if(u.truncated){
+      h+='<div class="note" style="border-left-color:var(--low)">The log is longer than the report '
+        +'reads, so older movements are not counted. Raise the log scan size in Settings.</div>';
+    }
+
+    /* Put this first when it happens. More returned than taken is impossible over
+       a long enough window, so it means a return was logged against the wrong
+       item or with a mistyped quantity — and because the net figure clamps at
+       zero, the effect is that the item silently reports "nothing used yet" and
+       vanishes from the forecast. One fat finger used to take out the headline
+       number with no visible cause. */
+    if(u.dataQuality.length){
+      h+='<div class="section-heading"><span>Check these — more came back than went out</span></div>'
+        +'<div class="note" style="border-left-color:var(--out)">Returns may belong to issues before this reporting window. '
+        +'Review the movements before deciding whether anything needs correcting.</div>'
+        +u.dataQuality.map(function(r){
+          return '<div class="row" style="padding:10px 12px"><div class="hd">'
+            +'<div class="nm">'+'<button class="context-link" onclick="openItem(\''+r.id+'\')">'+esc(r.name)+'</button></div>'
+            +'<div class="tag">'+r.taken+' out / '+r.returned+' back</div></div></div>';
+        }).join('');
+    }
+
+    if(u.running.length){
+      h+='<div class="section-heading"><span>Running out soonest</span></div>';
+      h+=u.running.slice(0,12).map(coverRow).join('');
+    }
+
+    if(u.overdueOrders.length){
+      h+='<div class="section-heading"><span>Ordered but overdue</span></div>'
+        +'<div class="note">Cover above counts these as stock on the way.</div>'
+        +u.overdueOrders.map(function(r){
+          return '<div class="row" style="padding:10px 12px"><div class="hd">'
+            +'<div><div class="nm">'+'<button class="context-link" onclick="openItem(\''+r.id+'\')">'+esc(r.name)+'</button></div>'
+            +'<div class="tag sub">'+r.onOrder+' outstanding'
+            +(r.onOrderDue?' · was due '+esc(r.onOrderDue):'')+'</div></div>'
+            +'<span class="pill late">'+r.onOrderOverdue+'d late</span></div></div>';
+        }).join('');
+    }
+
+    if(u.thresholdAdvice.length){
+      h+='<div class="section-heading"><span>Minimums that will not survive a delivery</span></div>'
+        +'<div class="note">At this rate, these run out before a replacement order could arrive. '
+        +'Nothing is changed automatically — raise the minimum on the item if you agree.</div>';
+      h+=u.thresholdAdvice.map(function(r){
+        return '<div class="row" style="padding:10px 12px"><div class="hd">'
+          +'<div><div class="nm">'+'<button class="context-link" onclick="openItem(\''+r.id+'\')">'+esc(r.name)+'</button></div>'
+          +'<div class="tag sub">set to '+r.min+' · '+r.perWeek+' a week · '
+          +r.leadTimeDays+' day delivery</div></div>'
+          +'<div style="text-align:right"><div class="num" style="font-size:1.25rem;font-weight:600;color:var(--low)">'
+          +r.suggestedMin+'</div><div class="tag">suggested</div></div></div>'
+          +'<div class="why">'+esc(r.leadTimeSource)
+          +(r.leadTimeWorst>r.leadTimeDays?' · worst seen '+r.leadTimeWorst+' days':'')
+          +'</div></div>';
+      }).join('');
+    }
+
+    if(u.movers.length){
+      h+='<div class="section-heading"><span>Moving fastest</span></div>';
+      h+=u.movers.map(function(r){
+        return '<div class="row" style="padding:10px 12px"><div class="hd">'
+          +'<div class="nm">'+'<button class="context-link" onclick="openItem(\''+r.id+'\')">'+esc(r.name)+'</button></div>'
+          +'<div><span class="num" style="font-weight:600">'+r.grossPerWeek+'</span> '
+          +'<span class="tag">/week</span></div></div>'
+          +(r.returned?'<div class="why">'+r.taken+' out, '+r.returned+' back — '
+            +(r.perWeek===null?'net rate unavailable':r.perWeek+'/week net used')+'</div>':'')
+          +(r.trend&&r.trend!=='steady'
+            ? '<div class="why'+(r.trend==='picking up'?' warn':'')+'">'
+              +esc(r.trend)+' — '+r.recentPerWeek+'/week over the last '+u.recentDays+' days</div>'
+            : '')
+        +'</div>';
+      }).join('');
+    }
+
+    /* Not a failure state. Most of a stockroom is slow movers, and the honest
+       answer for a projector lamp taken twice a year is an annual count, not a
+       daily rate withheld as unreliable. 3.1 showed these as blanks. */
+    if(u.unknown.length){
+      h+='<div class="section-heading"><span>No useful rate yet</span></div>'
+        +'<div class="note">A rate needs '+u.minEvents+' movements to mean anything. These move too '
+        +'rarely for that, so here is the count instead — which is the number you would actually '
+        +'plan a yearly order from.</div>';
+      h+=u.unknown.map(function(r){
+        return '<div class="row" style="padding:10px 12px"><div class="hd">'
+          +'<div class="nm">'+'<button class="context-link" onclick="openItem(\''+r.id+'\')">'+esc(r.name)+'</button></div>'
+          +'<div class="tag">'+r.shelf+' on shelf</div></div>'
+          +'<div class="why">'+esc(r.withheld)+'</div></div>';
+      }).join('');
+    }
+
+    if(u.topDestinations.length){
+      h+='<div class="section-heading"><span>Where it went</span></div>';
+      var max=u.topDestinations[0].units;
+      h+=u.topDestinations.map(function(d){
+        var pct=Math.round(d.units/max*100);
+        return '<div class="row" style="padding:10px 12px">'
+          +'<div class="hd"><div class="nm">'+esc(d.destination)+'</div>'
+          +'<div class="num" style="font-weight:600">'+d.units+'</div></div>'
+          +'<div class="meter bar" style="margin-top:8px">'
+          +'<i style="flex:'+pct+'"></i><i class="e" style="flex:'+(100-pct)+'"></i></div></div>';
+      }).join('');
+    }
+
+    if(!u.running.length && !u.movers.length && !u.unknown.length){
+      h='<div class="empty"><div class="big">Nothing to measure yet</div>'
+        +'<p>Usage rates need a few movements per item. Keep logging pulls and this fills in '
+        +'over the first couple of weeks.</p></div>';
+    }
+    $('view').innerHTML=h;
+  }).catch(function(){if(epoch===S.epoch&&view===S.viewSeq&&S.tab==='usage')$('view').innerHTML=loadError('Could not load usage.','renderUsage()')});
+}
+
+/* One forecast row. The number is always shown with what it was worked out
+   from, because a rate from three movements and a rate from three hundred look
+   identical otherwise — and the whole point of this screen is that people can
+   tell the difference. */
+/**
+ * One forecast row.
+ *
+ * Rows without a measurable rate appear here too, which is new: an empty shelf
+ * is a fact and does not need three movements to qualify as urgent. 3.1 required
+ * `reliable`, so the item that had just run out with two movements behind it was
+ * missing from the one list that was supposed to warn you about it.
+ */
+function coverRow(r){
+  var headline, tone;
+  if(r.state==='out'){ headline='empty'; tone='var(--out)' }
+  else if(r.cover){ headline=r.cover; tone=(r.daysLeft<=14?'var(--out)':'var(--low)') }
+  else { headline='at or below minimum'; tone='var(--low)' }
+
+  var h='<div class="row" style="padding:10px 12px"><div class="hd">'
+    +'<div><div class="nm">'+esc(r.name)+'</div>'
+    +'<div class="tag sub">'+r.shelf+' left'+(r.perWeek?' · '+r.perWeek+' a week':'')
+    +(r.min?' · minimum '+r.min:'')+'</div></div>'
+    +'<div style="text-align:right;flex-shrink:0"><div style="font-weight:600;font-size:.98rem;color:'
+    +tone+'">'+esc(headline)+'</div>'
+    +'<div class="tag">'+(r.cover?'of cover':'on the shelf')+'</div></div></div>';
+
+  if(r.onOrder){
+    h+='<div class="why'+(r.onOrderOverdue?' warn':'')+'">'+r.onOrder+' on order'
+      +(r.onOrderDue?', due '+esc(r.onOrderDue):'')
+      +(r.onOrderOverdue?' — '+r.onOrderOverdue+' days late, chase it'
+                        :(r.coverWithOrder?' — '+esc(r.coverWithOrder)+' once they land':''))
+      +'</div>';
+  }
+  if(r.ranOut){
+    h+='<div class="why warn">Ran out during this period, so the real rate may be higher</div>';
+  }
+  if(r.trend&&r.trend!=='steady'){
+    h+='<div class="why'+(r.trend==='picking up'?' warn':'')+'">'+esc(r.trend)+'</div>';
+  }
+  h+='<div class="why">'
+    +(r.reliable ? r.events+' movements over '+r.observedDays+' days in stock'
+                 : esc(r.withheld||'no measurable rate yet'))
+    +'</div>';
+  return h+'</div>';
+}
+
+/* ============================================================
+   Log — what has actually been happening
+   ============================================================ */
+/**
+ * The activity view.
+ *
+ * getTransactions() and the "how many rows of history should the app show?"
+ * setting both shipped a version ago with nothing calling them, so the only way
+ * to see what had just happened — or to find a mistake worth reversing — was to
+ * open the spreadsheet. Which nobody standing at a shelf can do.
+ *
+ * Reversal lives here as well as on the toast, because the toast only covers the
+ * seconds after the event. The server decides what each person may reverse and
+ * ships that as `canReverse` per row, so this screen never has to reimplement
+ * the rule and get it subtly different.
+ */
+function renderLog(){
+  var epoch=S.epoch,view=++S.viewSeq;
+  if(S.activity){ paintLog(); return }
+  $('view').innerHTML='<div class="skel"></div><div class="skel"></div><div class="skel"></div>';
+  call('getTransactions',[S.dept,60,'']).then(function(rows){
+    if(epoch!==S.epoch||view!==S.viewSeq||S.tab!=='log')return;
+    S.activity=rows; paintLog();
+  }).catch(function(){if(epoch===S.epoch&&view===S.viewSeq&&S.tab==='log')$('view').innerHTML=loadError('Could not load recent activity.','renderLog()')});
+}
+
+function paintLog(){
+  var rows=S.activity;
+  if(!rows.length){
+    $('view').innerHTML='<div class="empty"><div class="big">Nothing logged yet</div>'
+      +'<p>Every take, return, disposal and delivery lands here.</p></div>';
+    return;
+  }
+
+  var day='';
+  var h='<div class="note">Newest first. Anything you can still reverse has an Undo next to it.</div>';
+  rows.forEach(function(t){
+    var d=String(t.timestamp).slice(0,10);
+    if(d!==day){ day=d; h+='<div class="section-heading"><span>'+esc(d)+'</span></div>' }
+
+    h+='<div class="row" style="padding:10px 12px">'
+      +'<div class="hd"><div style="min-width:0">'
+      +'<div class="nm">'+esc(t.action)+' '+t.quantity+' × '+esc(t.itemName)+'</div>'
+      +'<div class="tag sub">'+esc(String(t.timestamp).slice(11,16))+' · '+esc(t.userName)
+      +(t.mine?' (you)':'')+(t.destination?' · '+esc(t.destination):'')+'</div></div>'
+      +(t.voided?'<span class="pill void">reversed</span>':'')
+      +'</div>'
+      +(t.notes?'<div class="why">'+esc(t.notes)+'</div>':'')
+      +(t.voided&&t.voidNote?'<div class="why">'+esc(t.voidNote)+'</div>':'');
+
+    if(t.canReverse){
+      h+='<div class="acts"><button class="btn sm sec" onclick="openReverse(\''+t.id+'\')">'
+        +'Reverse this</button></div>';
+    }
+    h+='</div>';
+  });
+  $('view').innerHTML=h;
+}
+
+function openReverse(txnId){
+  var t=null; (S.activity||[]).forEach(function(x){if(x.id===txnId)t=x});
+  if(!t)return;
+  reasonSheet({
+    title:'Reverse this movement',
+    subtitle:t.action+' '+t.quantity+' × '+t.itemName+' · '+t.timestamp,
+    note:'The original row stays in the log, marked as reversed. The stock count moves back.',
+    label:'Why is it being reversed', placeholder:'e.g. logged against the wrong item',
+    confirm:'Reverse it',
+    go:function(why){
+      return call('voidTransaction',[txnId,why]).then(function(){
+        toast('Reversed'); closeSheet(); S.activity=null;
+        return reload().then(function(){ if(S.tab==='log') renderLog() });
+      });
+    }
+  });
+}
+
+/* ============================================================
+   Add / edit item
+   ============================================================ */
+function openAdd(){itemForm(null)}
+function openEdit(){itemForm(CUR.item)}
+
+function itemForm(item){
+  var L=S.boot.lists;
+  var isNew=!item;
+  var v=function(x){return esc(item?item[x]:'')};
+
+  var h='<div class="grip"></div><h2>'+(isNew?'Add an item':'Edit item')+'</h2>'
+    +(isNew?'':'<span class="tag">'+esc(item.id)+'</span>')
+    +'<div class="perf"></div>'
+    +'<div class="f"><label class="tag">Name</label><input id="iName" value="'+v('name')+'" placeholder="e.g. APC RBC17 Battery"></div>'
+    +'<div class="f2">'
+      +'<div class="f"><label class="tag">Category</label><input id="iCat" list="catList" value="'+v('category')+'">'
+      +'<datalist id="catList">'+(L.categories||[]).map(function(c){return '<option value="'+esc(c)+'">'}).join('')+'</datalist></div>'
+      +'<div class="f"><label class="tag">Shelf location</label><input id="iLoc" list="locList" value="'+v('location')+'">'
+      +'<datalist id="locList">'+(L.locations||[]).map(function(c){return '<option value="'+esc(c)+'">'}).join('')+'</datalist></div>'
+    +'</div>';
+
+  if(isNew){
+    h+='<div class="f2">'
+      +'<div class="f"><label class="tag">Department</label><select id="iDept">'
+      +S.boot.departments.map(function(d){
+        return '<option value="'+d.id+'"'+(d.id===S.dept?' selected':'')+'>'+esc(d.label)+'</option>';
+      }).join('')+'</select></div>'
+      +'<div class="f"><label class="tag">Starting count</label><input id="iQty" class="num" type="number" min="0" value="0"></div>'
+    +'</div>';
+  }
+
+  /* This one field decides how the item behaves when it comes back, so it is
+     worth more than a dropdown with two words in it.
+
+     Built from the class table the server shipped, not from two hardcoded
+     options — so adding a class to CONFIG.ITEM_CLASSES makes it appear here with
+     its own label and explanation. */
+  var classes=S.boot.itemClasses||[];
+  var cls=item?item.itemClass:(classes[0]&&classes[0].key)||'consumable';
+  h+='<div class="f"><label class="tag">What happens when it comes back</label>'
+    +'<div class="picker"><select id="iClass" onchange="showClassBlurb()">'
+    +classes.map(function(c){
+      return '<option value="'+esc(c.key)+'"'+(cls===c.key?' selected':'')+'>'+esc(c.label)+'</option>';
+    }).join('')
+    +'</select></div>'
+    +'<div class="cfg-help" id="classBlurb"></div></div>';
+
+  h+='<div class="f2">'
+    +'<div class="f"><label class="tag">Reorder at</label><input id="iMin" class="num" type="number" min="0" value="'+(item?item.min:2)+'"></div>'
+    +'<div class="f"><label class="tag">Top up to</label><input id="iTo" class="num" type="number" min="0" value="'+(item?item.reorderTo:10)+'"></div>'
+  +'</div>'
+  +'<div class="f2">'
+    +'<div class="f"><label class="tag">Vendor</label><input id="iVendor" list="vendList" value="'+v('vendor')+'">'
+    +'<datalist id="vendList">'+(L.vendors||[]).map(function(c){return '<option value="'+esc(c)+'">'}).join('')+'</datalist></div>'
+    +'<div class="f"><label class="tag">Unit cost</label><input id="iCost" class="num" type="number" step="0.01" value="'+v('unitCost')+'"></div>'
+  +'</div>'
+  +'<div class="f"><label class="tag">Notes</label><textarea id="iNotes">'+v('notes')+'</textarea></div>';
+
+  h+='<div class="f"><label class="tag">Photo</label>';
+  if(S.boot.photoUploadEnabled){
+    h+='<input id="iPhoto" type="file" accept="image/*" capture="environment" onchange="uploadPhoto(this)">'
+      +'<div id="photoState" class="tag" style="margin-top:6px">'
+      +(item&&item.imageUrl?'Photo attached':'Take one now or leave blank')+'</div>';
+  } else {
+    h+='<input id="iUrl" value="'+v('imageUrl')+'" placeholder="https://… image link">'
+      +'<div class="tag" style="margin-top:6px">Direct upload is off. An admin can turn it on in Config.gs.</div>';
+  }
+  h+='</div>'
+  +'<input type="hidden" id="iImage" value="'+v('imageUrl')+'">';
+
+  h+='<div class="btn-row"><button class="btn sec" onclick="closeSheet()">Cancel</button>'
+    +'<button class="btn" id="iGo" onclick="'+(isNew?'submitNew()':'submitEdit(\''+item.id+'\')')+'">'
+    +(isNew?'Add item':'Save changes')+'</button></div>';
+
+  if(!isNew && has('item.adjust')){
+    h+='<div class="hr"></div>'
+      +'<div class="f"><label class="tag">Correct the shelf count</label>'
+      +'<div class="f2"><input id="aQty" class="num" type="number" min="0" value="'+item.shelf+'">'
+      +'<input id="aWhy" placeholder="Reason (required)"></div>'
+      +'<button class="btn sec wide sm" style="margin-top:8px" onclick="submitAdjust(\''+item.id+'\')">Save correction</button></div>';
+  }
+
+  /* Retiring an item existed server-side with no button, so a discontinued line
+     stayed on every shelf list forever. The server refuses while units are on the
+     bench or an order is open, and keeps the row for its history. */
+  if(!isNew && has('item.archive')){
+    h+='<div class="hr"></div>'
+      +'<button class="btn sec wide sm" onclick="confirmArchive(\''+item.id+'\')">'
+      +'Retire this item</button>'
+      +'<div class="cfg-help" style="margin-top:6px">Takes it off the stock list and keeps every '
+      +'movement it ever had. Not allowed while units are on the bench or an order is open.</div>';
+  }
+
+  $('sheet').innerHTML=h;
+  mountPanel();
+  showClassBlurb();
+}
+
+/* The explanation under the class picker, from the same table that supplies the
+   options — so it can never describe a different class than the one selected. */
+function showClassBlurb(){
+  var sel=$('iClass'), box=$('classBlurb');
+  if(!sel||!box) return;
+  var blurb='';
+  (S.boot.itemClasses||[]).forEach(function(c){ if(c.key===sel.value) blurb=c.blurb });
+  box.textContent=blurb;
+}
+
+function confirmArchive(id){
+  var name=id;
+  S.boot.items.forEach(function(i){ if(i.id===id) name=i.name });
+  reasonSheet({
+    title:'Retire this item', subtitle:name,
+    note:'It disappears from the stock list. Every movement it ever had stays in the log, and you '
+      +'can put it back by setting Active to Yes on the Inventory tab.',
+    label:'Why is it being retired', placeholder:'e.g. discontinued, replaced by the 1.5m version',
+    confirm:'Retire it',
+    go:function(why){
+      return call('archiveItem',[id,why]).then(function(){
+        toast('Retired'); closeSheet(); return reload();
+      });
+    }
+  });
+}
+
+function uploadPhoto(input){
+  var file=input.files&&input.files[0]; if(!file)return;
+  $('photoState').textContent='Uploading…';
+  var reader=new FileReader();
+  reader.onload=function(){
+    call('uploadPhoto',[{
+      data:reader.result.split(',')[1], mimeType:file.type, filename:file.name
+    }]).then(function(r){
+      $('iImage').value=r.url;
+      $('photoState').textContent='Photo attached';
+    }).catch(function(e){$('photoState').textContent=e.message});
+  };
+  reader.readAsDataURL(file);
+}
+
+function submitNew(){
+  if(S.busy)return; S.busy=true;
+  clearSheetError();
+  $('iGo').disabled=true; $('iGo').textContent='Saving…';
+  call('createItem',[{
+    name:$('iName').value, category:$('iCat').value, department:$('iDept').value,
+    location:$('iLoc').value, shelf:$('iQty').value, min:$('iMin').value,
+    itemClass:$('iClass').value,
+    reorderTo:$('iTo').value, vendor:$('iVendor').value, unitCost:$('iCost').value,
+    notes:$('iNotes').value, imageUrl:$('iImage').value||($('iUrl')?$('iUrl').value:'')
+  }]).then(function(){
+    S.busy=false;toast('Item added');closeSheet();return reload();
+  }).catch(function(e){
+    S.busy=false; fail(e); $('iGo').disabled=false; $('iGo').textContent='Add item';
+  });
+}
+
+function submitEdit(id){
+  if(S.busy)return; S.busy=true;
+  clearSheetError();
+  $('iGo').disabled=true; $('iGo').textContent='Saving…';
+  call('updateItem',[id,{
+    'Item Name':$('iName').value, 'Category':$('iCat').value, 'Location':$('iLoc').value,
+    'Item Class':$('iClass').value,
+    'Min Threshold':$('iMin').value, 'Reorder To':$('iTo').value,
+    'Vendor':$('iVendor').value, 'Unit Cost':$('iCost').value, 'Notes':$('iNotes').value,
+    'Image URL':$('iImage').value||($('iUrl')?$('iUrl').value:'')
+  }]).then(function(item){
+    S.busy=false; toast('Saved'); closeSheet(); patchItem(item); return reload();
+  }).catch(function(e){
+    S.busy=false; fail(e); $('iGo').disabled=false; $('iGo').textContent='Save changes';
+  });
+}
+
+function submitAdjust(id){
+  clearSheetError();
+  call('adjustStock',[id,$('aQty').value,$('aWhy').value]).then(function(item){
+    toast('Count corrected'); closeSheet(); patchItem(item); return reload();
+  }).catch(fail);
+}
+
+/* ============================================================
+   Me / settings
+   ============================================================ */
+function showMe(){
+  var u=S.boot.user;
+  var h='<div class="grip"></div><h2>'+esc(u.name)+'</h2>'
+    +'<span class="tag">'+esc(u.email)+' · '+esc(u.role)
+    +(S.boot.version?' · v'+esc(S.boot.version):'')+'</span>'
+    +'<div class="perf"></div>'
+    +(has('txn.undoOwn')||has('txn.void')
+      ? '<div class="note">Tapped the wrong thing? The confirmation after every take and return '
+        +'has an Undo, and the Log tab can reverse anything of yours from the last '
+        +S.boot.undoMinutes+' minutes.</div>'
+      : '')
+    +'<div class="tag" style="margin-bottom:8px">What your role can do</div>'
+    +'<div class="taglist">'
+    +u.permissions.map(function(p){return '<span>'+esc(p.replace('.',' '))+'</span>'}).join('')
+    +'</div>';
+
+  if(has('settings.manage')){
+    h+='<div class="hr"></div><button class="btn sec wide" onclick="openSettings()">Notification settings</button>';
+    h+='<button class="btn sec wide" style="margin-top:8px" onclick="openUsers()">Manage people</button>';
+  }
+  h+='<div class="btn-row"><button class="btn sec" onclick="closeSheet()">Close</button></div>';
+  h+='<div class="hr"></div><div class="f"><label for="startView">Open this view next time</label><select id="startView" onchange="try{localStorage.setItem(START_KEY,this.value)}catch(e){}"><option value="stock"'+(S.tab==='stock'?' selected':'')+'>Stock</option><option value="orders"'+(S.tab==='orders'?' selected':'')+'>Orders</option></select></div>';
+  $('sheet').innerHTML=h;
+  mountPanel();
+}
+
+function openSettings(){
+  Promise.all([call('getSettings',[]), call('getConfigForApp',[])]).then(function(res){
+    var s=res[0], schema=res[1];
+
+    var h='<div class="grip"></div><h2>Settings</h2>'
+      +'<span class="tag">Same values as the Config tab on the spreadsheet</span>'
+      +'<div class="perf"></div>'
+      +'<div class="tag" style="margin-bottom:10px">CHAT ALERTS</div>';
+
+    s.webhooks.forEach(function(w){
+      h+='<div class="f"><label class="tag">'+esc(w.label)+' space</label>'
+        +'<input id="wh_'+w.id+'" placeholder="'
+        +(w.configured?'Configured — leave blank to keep':'Paste the Google Chat webhook URL')+'">'
+        +'<div class="tag" style="margin-top:5px">'
+        +(w.configured
+          ? esc(w.preview)+' &nbsp;<button class="btn sm sec" style="padding:2px 8px" onclick="testHook(\''+w.id+'\')">Send test</button>'
+          : 'Not set up yet')
+        +'</div></div>';
+    });
+    h+='<button class="btn sec wide sm" onclick="saveWebhooks()">Save webhooks</button>'
+      +'<div class="note">Webhook URLs are credentials, so they are stored server-side and never '
+      +'shown in full — and never written into the spreadsheet.</div>';
+
+    var group='';
+    schema.forEach(function(f){
+      if(f.group!==group){
+        h+='<div class="perf"></div><div class="tag" style="margin-bottom:10px">'
+          +esc(f.group.toUpperCase())+'</div>';
+        group=f.group;
+      }
+      h+='<div class="cfg"><div class="cfg-q">'+esc(f.label)+'</div>';
+      if(f.type==='boolean'){
+        h+='<select onchange="setCfg(\''+f.key+'\',this.value,this)">'
+          +'<option value="Yes"'+(f.value?' selected':'')+'>Yes</option>'
+          +'<option value="No"'+(f.value?'':' selected')+'>No</option></select>';
+      } else if(f.options){
+        h+='<select onchange="setCfg(\''+f.key+'\',this.value,this)">'
+          +f.options.map(function(o){
+            return '<option'+(String(o)===String(f.value)?' selected':'')+'>'+esc(o)+'</option>';
+          }).join('')+'</select>';
+      } else {
+        h+='<input type="'+(f.type==='number'?'number':'text')+'" value="'+esc(f.value)
+          +'" onchange="setCfg(\''+f.key+'\',this.value,this)">';
+      }
+      h+='<div class="cfg-help">'+esc(f.help)+'</div></div>';
+    });
+
+    h+='<div class="btn-row"><button class="btn sec" onclick="closeSheet()">Close</button></div>';
+    $('sheet').innerHTML=h;
+  }).catch(fail);
+}
+
+function setCfg(key, value, el){
+  el.disabled=true;
+  call('updateSetting',[key,value]).then(function(){
+    el.disabled=false; toast('Saved');
+    if(key==='app.orgName'||key==='app.defaultDepartment') reload();
+  }).catch(function(e){el.disabled=false;fail(e)});
+}
+
+function saveWebhooks(){
+  var hooks={};
+  S.boot.departments.forEach(function(d){
+    var el=$('wh_'+d.id); if(el && el.value.trim()) hooks[d.id]=el.value.trim();
+  });
+  if(!Object.keys(hooks).length){toast('Nothing to save');return}
+  call('saveSettings',[{webhooks:hooks}])
+    .then(function(){toast('Webhooks saved');openSettings()}).catch(fail);
+}
+
+function testHook(id){
+  call('testWebhook',[id]).then(function(){toast('Test message sent')}).catch(fail);
+}
+
+function openUsers(){
+  call('listUsers',[]).then(function(list){
+    /* From the Roles tab, not a hardcoded list. Roles.gs has always supported
+       adding a role by adding a column; this screen used to hardcode five names,
+       so a new role was invisible in the only place you could assign it. */
+    var roles=S.boot.roles||['viewer','staff','tech','manager','admin'];
+    var h='<div class="grip"></div><h2>People</h2>'
+      +'<span class="tag">'+list.length+' with access</span><div class="perf"></div>';
+
+    h+=list.map(function(u){
+      return '<div class="row" style="padding:10px 12px"><div class="hd">'
+        +'<div style="min-width:0"><div class="nm">'+esc(u.name)+'</div>'
+        +'<div class="tag sub" style="overflow:hidden;text-overflow:ellipsis">'+esc(u.email)+'</div></div>'
+        +'<select onchange="changeRole(\''+esc(u.email)+'\',this.value)" style="padding:5px;border:1.5px solid var(--rule);border-radius:6px">'
+        +roles.map(function(r){return '<option'+(r===u.role?' selected':'')+'>'+r+'</option>'}).join('')
+        +'</select></div></div>';
+    }).join('');
+
+    h+='<div class="hr"></div><div class="tag" style="margin-bottom:8px">Add someone</div>'
+      +'<div class="f"><input id="nuEmail" placeholder="name@yourcollege.edu"></div>'
+      +'<div class="f2"><div class="f"><input id="nuName" placeholder="Display name"></div>'
+      +'<div class="f"><select id="nuRole">'+roles.map(function(r){
+        return '<option'+(r===S.boot.startingRole?' selected':'')+'>'+r+'</option>'}).join('')+'</select></div></div>'
+      +'<button class="btn wide sm" onclick="addUser()">Add person</button>'
+      +'<div class="note">People on your domain are added automatically as <b>'
+      +esc(S.boot.startingRole)+'</b> the first time they open the app, which lets them look '
+      +'but not change anything. Promote the ones who need more.</div>'
+      +'<div class="btn-row"><button class="btn sec" onclick="closeSheet()">Close</button></div>';
+    $('sheet').innerHTML=h;
+  }).catch(fail);
+}
+
+function changeRole(email, role){
+  call('setUserRole',[email,role,true]).then(function(){toast('Role updated')}).catch(fail);
+}
+function addUser(){
+  call('inviteUser',[$('nuEmail').value,$('nuName').value,$('nuRole').value,S.dept])
+    .then(function(){toast('Added');openUsers()}).catch(fail);
+}
+
+/* ============================================================
+   Sheet plumbing
+   ============================================================ */
+function closeSheet(e){
+  if(S.busy || (e&&e.target!==e.currentTarget))return;
+  S.panelSeq++; clearSheetError(); $('veil').classList.remove('open'); document.body.classList.remove('detail-open');
+  if(panelFocus&&document.contains(panelFocus))panelFocus.focus();
+}
+document.addEventListener('keydown',function(e){
+  if(e.key==='Escape')closeSheet();
+  if(e.key==='Tab'&&$('veil').classList.contains('open')){
+    var f=Array.from($('sheet').querySelectorAll('button:not(:disabled),input:not(:disabled),select:not(:disabled),textarea,a[href],summary')).filter(function(x){return x.getClientRects().length});
+    var first=f[0],last=f[f.length-1];
+    if(!f.length){e.preventDefault();return}
+    if(e.shiftKey&&(document.activeElement===first||document.activeElement===$('sheet'))){last.focus();e.preventDefault()}
+    else if(!e.shiftKey&&document.activeElement===last){first.focus();e.preventDefault()}
+  }
+});
+</script>
+</body>
+</html>

@@ -1,0 +1,4 @@
+.DS_Store
+*.swp
+.clasp.json
+.codex/writeback-staging/
